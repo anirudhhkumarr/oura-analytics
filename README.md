@@ -16,7 +16,7 @@ settings, set **Pages → Source** to **GitHub Actions**. The site will be at:
 1. Create an Oura OAuth application at <https://cloud.ouraring.com/oauth/applications>.
 2. Copy `.env.example` to `.env`, then set the client ID and client secret.
 3. In the Oura application, set the Redirect URI to exactly
-   `http://127.0.0.1:8780/api/auth/callback`.
+   `http://localhost:8780/api/auth/callback`.
 4. Start the local bridge:
 
    ```bash
@@ -32,7 +32,7 @@ settings, set **Pages → Source** to **GitHub Actions**. The site will be at:
 A browser cannot connect directly to a stdio MCP server: that transport is
 local-process-only, and exposing it on the public internet would expose private
 health data. The bridge is the safe browser-facing adapter: it stays bound to
-`127.0.0.1`, holds the Oura token locally, and returns only dashboard data to
+`localhost`, holds the Oura token locally, and returns only dashboard data to
 the Page.
 
 If you run `oura-ring-mcp`, point both tools at the same local Oura OAuth app

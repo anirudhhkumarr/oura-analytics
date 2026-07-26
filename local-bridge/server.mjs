@@ -19,7 +19,7 @@ const env = Object.fromEntries(
 );
 const config = { ...env, ...process.env };
 const port = Number(config.LOCAL_BRIDGE_PORT || 8780);
-const redirectUri = config.OURA_REDIRECT_URI || `http://127.0.0.1:${port}/api/auth/callback`;
+const redirectUri = config.OURA_REDIRECT_URI || `http://localhost:${port}/api/auth/callback`;
 const dashboardOrigin = config.DASHBOARD_ORIGIN || 'https://anirudhhkumarr.github.io';
 const tokenPath = config.OURA_TOKEN_PATH || join(homedir(), '.config', 'oura-analytics', 'tokens.json');
 let oauthState = null;
@@ -104,7 +104,7 @@ async function dashboard(days) {
 }
 
 const server = createServer(async (req, res) => {
-  const url = new URL(req.url || '/', `http://127.0.0.1:${port}`);
+  const url = new URL(req.url || '/', `http://localhost:${port}`);
   if (url.pathname === '/api/auth/callback') {
     if (!url.searchParams.get('code') || url.searchParams.get('state') !== oauthState) return send(res, 400, '<h1>Sign-in failed</h1><p>Please return to the dashboard and try again.</p>', 'text/html');
     try {
@@ -120,7 +120,7 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/auth/status') return send(res, 200, { connected: Boolean((await loadTokens())?.access_token) });
   if (url.pathname === '/api/auth/login') {
     if (!config.OURA_CLIENT_ID || !config.OURA_CLIENT_SECRET) return send(res, 400, { error: 'Add OURA_CLIENT_ID and OURA_CLIENT_SECRET to .env first.' });
-    if (redirectUri !== `http://127.0.0.1:${port}/api/auth/callback`) return send(res, 400, { error: `Set the Oura Redirect URI to ${redirectUri} and ensure it points to this bridge.` });
+    if (redirectUri !== `http://localhost:${port}/api/auth/callback`) return send(res, 400, { error: `Set the Oura Redirect URI to ${redirectUri} and ensure it points to this bridge.` });
     oauthState = randomBytes(24).toString('hex');
     const auth = new URL('https://cloud.ouraring.com/oauth/authorize');
     auth.search = new URLSearchParams({ response_type: 'code', client_id: config.OURA_CLIENT_ID, redirect_uri: redirectUri, scope: 'daily workout', state: oauthState });
@@ -132,4 +132,4 @@ const server = createServer(async (req, res) => {
   }
   return send(res, 404, { error: 'Not found.' });
 });
-server.listen(port, '127.0.0.1', () => console.log(`Oura local bridge: http://127.0.0.1:${port}`));
+server.listen(port, 'localhost', () => console.log(`Oura local bridge: http://localhost:${port}`));

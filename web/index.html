@@ -25,10 +25,10 @@
       <div id="notice"></div>
       <section class="cards"><div class="card"><div class="label">Sleep score</div><div class="value" id="sleep">—</div></div><div class="card"><div class="label">Readiness score</div><div class="value" id="readiness">—</div></div><div class="card"><div class="label">Activity score</div><div class="value" id="activity">—</div></div></section>
       <section class="chart"><h2>Daily scores</h2><canvas id="scores"></canvas></section>
-      <footer>Requires the local Oura bridge at <code>127.0.0.1:8780</code>. No Oura token is stored in this page or sent to GitHub.</footer>
+      <footer>Requires the local Oura bridge at <code>localhost:8780</code>. No Oura token is stored in this page or sent to GitHub.</footer>
     </main>
     <script>
-      const bridge = 'http://127.0.0.1:8780'; let chart;
+      const bridge = 'http://localhost:8780'; let chart;
       const el = (id) => document.getElementById(id);
       function notice(message, error = false) { const node = el('notice'); node.textContent = message; node.className = error ? 'error' : ''; node.style.display = message ? 'block' : 'none'; }
       async function api(path) { const response = await fetch(bridge + path); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Local bridge request failed.'); return body; }
