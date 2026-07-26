@@ -27,30 +27,141 @@
       <section class="cards"><div class="card"><div class="label">Sleep score</div><div class="value" id="sleep">—</div></div><div class="card"><div class="label">Readiness score</div><div class="value" id="readiness">—</div></div><div class="card"><div class="label">Activity score</div><div class="value" id="activity">—</div></div><div class="card"><div class="label">Latest steps</div><div class="value" id="steps">—</div></div><div class="card"><div class="label">Overnight HRV</div><div class="value" id="hrv">—</div></div><div class="card"><div class="label">SpO₂</div><div class="value" id="spo2">—</div></div></section>
       <section class="chart"><h2>Daily scores</h2><canvas id="scores"></canvas></section>
       <details><summary>Fetched Oura collections</summary><div id="collections">Connect Oura to load available data.</div></details>
-      <footer>Requires the local Oura bridge at <code>localhost:8780</code>. No Oura token is stored in this page or sent to GitHub.</footer>
+      <footer>Connects through a local bridge at <code>localhost:8780</code>. Dashboard data is cached in this browser; your Oura token stays on your computer.</footer>
     </main>
     <script>
       const hostedPage = location.hostname !== 'localhost';
-      const bridge = hostedPage ? 'http://localhost:8780' : ''; let chart;
+      const bridge = hostedPage ? 'http://localhost:8780' : '';
+      const DB_NAME = 'oura-analytics';
+      const STORE = 'dashboard';
+      let chart;
       const el = (id) => document.getElementById(id);
-      function notice(message, error = false) { const node = el('notice'); node.textContent = message; node.className = error ? 'error' : ''; node.style.display = message ? 'block' : 'none'; }
-      async function api(path) { const response = await fetch(bridge + path); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Local bridge request failed.'); return body; }
-      async function connect() { if (hostedPage) return location.assign('http://localhost:8780'); try { const result = await api('/api/auth/login'); location.assign(result.authorization_url); } catch (error) { notice(error.message, true); } }
+      function notice(message, error = false) {
+        const node = el('notice');
+        node.textContent = message;
+        node.className = error ? 'error' : '';
+        node.style.display = message ? 'block' : 'none';
+      }
+      function openDb() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, 1);
+          request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: 'days' });
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+      async function cacheGet(days) {
+        try {
+          const db = await openDb();
+          return await new Promise((resolve, reject) => {
+            const request = db.transaction(STORE, 'readonly').objectStore(STORE).get(String(days));
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
+          });
+        } catch { return null; }
+      }
+      async function cachePut(days, data) {
+        try {
+          const db = await openDb();
+          await new Promise((resolve, reject) => {
+            const request = db.transaction(STORE, 'readwrite').objectStore(STORE).put({
+              days: String(days),
+              data,
+              fetchedAt: Date.now(),
+            });
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          });
+        } catch { /* cache is best-effort */ }
+      }
+      async function api(path) {
+        const response = await fetch(bridge + path);
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Local bridge request failed.');
+        return body;
+      }
+      async function connect() {
+        if (hostedPage) return location.assign('http://localhost:8780');
+        try {
+          const result = await api('/api/auth/login');
+          location.assign(result.authorization_url);
+        } catch (error) {
+          notice(error.message, true);
+        }
+      }
       function render(data) {
-        el('sleep').textContent = data.summary.sleep ?? '—'; el('readiness').textContent = data.summary.readiness ?? '—'; el('activity').textContent = data.summary.activity ?? '—'; el('steps').textContent = data.summary.steps?.toLocaleString?.() ?? '—'; el('hrv').textContent = data.summary.hrv ? data.summary.hrv + ' ms' : '—'; el('spo2').textContent = data.summary.spo2 ? data.summary.spo2 + '%' : '—';
+        el('sleep').textContent = data.summary.sleep ?? '—';
+        el('readiness').textContent = data.summary.readiness ?? '—';
+        el('activity').textContent = data.summary.activity ?? '—';
+        el('steps').textContent = data.summary.steps?.toLocaleString?.() ?? '—';
+        el('hrv').textContent = data.summary.hrv ? data.summary.hrv + ' ms' : '—';
+        el('spo2').textContent = data.summary.spo2 ? data.summary.spo2 + '%' : '—';
         window.ouraRawData = data.raw;
         const counts = Object.entries(data.collection_counts).map(([name, count]) => `${name}: ${count}`).join('\n');
-        const failures = Object.entries(data.errors).map(([name, error]) => `${name}: unavailable (${error})`).join('\n');
+        const failures = Object.entries(data.errors || {}).map(([name, error]) => `${name}: unavailable (${error})`).join('\n');
         el('collections').textContent = [counts, failures].filter(Boolean).join('\n');
         if (chart) chart.destroy();
-        chart = new Chart(el('scores'), { type:'line', data:{ labels:data.daily.map((d) => d.day.slice(5)), datasets:[
-          { label:'Sleep', data:data.daily.map((d) => d.sleep_score), borderColor:'#74e6cb', backgroundColor:'transparent', tension:.35 },
-          { label:'Readiness', data:data.daily.map((d) => d.readiness_score), borderColor:'#9fb8ff', backgroundColor:'transparent', tension:.35 },
-          { label:'Activity', data:data.daily.map((d) => d.activity_score), borderColor:'#ffc978', backgroundColor:'transparent', tension:.35 }
-        ]}, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ suggestedMin:50, suggestedMax:100, grid:{color:'#23334a'} }, x:{grid:{display:false}} }, plugins:{legend:{labels:{color:'#edf4ff'}}} } });
+        chart = new Chart(el('scores'), {
+          type: 'line',
+          data: {
+            labels: data.daily.map((d) => d.day.slice(5)),
+            datasets: [
+              { label: 'Sleep', data: data.daily.map((d) => d.sleep_score), borderColor: '#74e6cb', backgroundColor: 'transparent', tension: .35 },
+              { label: 'Readiness', data: data.daily.map((d) => d.readiness_score), borderColor: '#9fb8ff', backgroundColor: 'transparent', tension: .35 },
+              { label: 'Activity', data: data.daily.map((d) => d.activity_score), borderColor: '#ffc978', backgroundColor: 'transparent', tension: .35 },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { suggestedMin: 50, suggestedMax: 100, grid: { color: '#23334a' } }, x: { grid: { display: false } } },
+            plugins: { legend: { labels: { color: '#edf4ff' } } },
+          },
+        });
       }
-      async function load() { if (hostedPage) { el('connect').textContent = 'Open local dashboard'; notice('Opening the local dashboard…'); setTimeout(() => location.replace('http://localhost:8780'), 350); return; } try { const status = await api('/api/auth/status'); if (!status.connected) { notice('Select Connect Oura to authorize your account.'); return; } notice(''); render(await api('/api/dashboard?days=' + el('days').value)); } catch (error) { notice('Cannot reach the local bridge. Run `npm run start:bridge` from the repository. ' + error.message, true); } }
-      el('connect').addEventListener('click', connect); el('refresh').addEventListener('click', load); el('days').addEventListener('change', load); load();
+      function cacheAge(fetchedAt) {
+        const minutes = Math.max(1, Math.round((Date.now() - fetchedAt) / 60_000));
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.round(minutes / 60);
+        if (hours < 48) return `${hours}h ago`;
+        return `${Math.round(hours / 24)}d ago`;
+      }
+      async function load({ force = false } = {}) {
+        if (hostedPage) {
+          el('connect').textContent = 'Open dashboard';
+          notice('Opening your local dashboard…');
+          setTimeout(() => location.replace('http://localhost:8780'), 350);
+          return;
+        }
+        const days = el('days').value;
+        const cached = await cacheGet(days);
+        if (cached?.data && !force) {
+          render(cached.data);
+          notice(`Showing cached data (${cacheAge(cached.fetchedAt)}). Updating…`);
+        }
+        try {
+          const status = await api('/api/auth/status');
+          if (!status.connected) {
+            notice('Select Connect Oura to authorize your account.');
+            return;
+          }
+          const data = await api('/api/dashboard?days=' + days);
+          await cachePut(days, data);
+          render(data);
+          notice('');
+        } catch (error) {
+          if (cached?.data) {
+            render(cached.data);
+            notice(`Showing cached data (${cacheAge(cached.fetchedAt)}). Bridge unreachable — start it with \`npm run start:bridge\`. ${error.message}`, true);
+          } else {
+            notice('Cannot reach the local bridge. Start it with `npm run start:bridge`, then reload. ' + error.message, true);
+          }
+        }
+      }
+      el('connect').addEventListener('click', connect);
+      el('refresh').addEventListener('click', () => load({ force: true }));
+      el('days').addEventListener('change', () => load());
+      load();
     </script>
   </body>
 </html>

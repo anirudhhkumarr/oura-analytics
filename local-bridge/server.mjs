@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Local-only Oura bridge for the GitHub Pages UI.
- * OAuth secrets and tokens never enter the published site.
+ * Local-only Oura bridge for the published dashboard.
+ * OAuth secrets and tokens never enter the static site.
  */
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
@@ -37,7 +37,7 @@ function cors(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   // Chrome requires this response to a Private Network Access preflight
-  // before an HTTPS public site (GitHub Pages) may call 127.0.0.1.
+  // before an HTTPS public site may call 127.0.0.1.
   res.setHeader('Access-Control-Allow-Private-Network', 'true');
 }
 async function loadTokens() {
@@ -158,12 +158,17 @@ const server = createServer(async (req, res) => {
     return send(res, 200, await readFile(new URL('../web/index.html', import.meta.url), 'utf8'), 'text/html; charset=utf-8');
   }
   if (url.pathname === '/api/auth/callback') {
-    if (!url.searchParams.get('code') || url.searchParams.get('state') !== oauthState) return send(res, 400, '<h1>Sign-in failed</h1><p>Please return to the dashboard and try again.</p>', 'text/html');
+    if (!url.searchParams.get('code') || url.searchParams.get('state') !== oauthState) {
+      return send(res, 400, '<!doctype html><html><head><meta charset="utf-8"><title>Sign-in failed</title></head><body><h1>Sign-in failed</h1><p><a href="/">Return to the dashboard</a> and try again.</p></body></html>', 'text/html; charset=utf-8');
+    }
     try {
       await exchangeCode(url.searchParams.get('code'));
       oauthState = null;
-      return send(res, 200, '<h1>Oura connected</h1><p>Return to the GitHub Pages dashboard and press Refresh data.</p>', 'text/html');
-    } catch (error) { return send(res, 500, `<h1>Sign-in failed</h1><p>${error.message}</p>`, 'text/html'); }
+      res.writeHead(302, { Location: '/', 'Cache-Control': 'no-store' });
+      return res.end();
+    } catch (error) {
+      return send(res, 500, `<!doctype html><html><head><meta charset="utf-8"><title>Sign-in failed</title></head><body><h1>Sign-in failed</h1><p>${error.message}</p><p><a href="/">Return to the dashboard</a></p></body></html>`, 'text/html; charset=utf-8');
+    }
   }
   if (!originAllowed(req)) return send(res, 403, { error: 'Origin is not allowed.' });
   cors(req, res);

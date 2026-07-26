@@ -1,55 +1,33 @@
 # Oura Analytics
 
-A static GitHub Pages dashboard with a deliberately local Oura bridge. The
-published site contains only HTML, CSS, and JavaScript; Oura credentials,
-tokens, and health data remain on the computer running the bridge.
+Personal Oura dashboard.
 
-## Publish to GitHub Pages
+**Site:** https://anirudhhkumarr.github.io/oura-analytics/
 
-The included workflow deploys `web/` when `main` is pushed. In the repository
-settings, set **Pages → Source** to **GitHub Actions**. The site will be at:
-
-`https://anirudhhkumarr.github.io/oura-analytics/`
-
-## One-time local setup
+## Setup
 
 1. Create an Oura OAuth application at <https://cloud.ouraring.com/oauth/applications>.
 2. Copy `.env.example` to `.env`, then set the client ID and client secret.
-3. In the Oura application, set the Redirect URI to exactly
-   `http://localhost:8780/api/auth/callback`.
+3. Set the Oura Redirect URI to `http://localhost:8780/api/auth/callback`.
 4. Start the local bridge:
 
    ```bash
    npm run start:bridge
    ```
 
-5. Open the Pages site and select **Open local dashboard**, then select
-   **Connect Oura**. The OAuth flow and token exchange run through `localhost`; the token is written with owner-only
-   permissions to `~/.config/oura-analytics/tokens.json`.
+5. Open the site or `http://localhost:8780`, then select **Connect Oura**.
 
-The bridge requests every Oura v2 collection available to the app: daily
-scores, sleep, activity, stress, resilience, SpO₂, cardiovascular age, VO₂
-max, workouts, sessions, tags, rest periods, heart rate, and personal info.
-After an upgrade, select **Connect Oura** again to grant any newly requested
-scopes. Collections that Oura does not make available to the account are shown
-as unavailable without blocking the rest of the dashboard.
+Tokens are stored at `~/.config/oura-analytics/tokens.json`.
 
-## MCP boundary
+If you also use `oura-ring-mcp`, set the same `OURA_TOKEN_PATH` in both `.env` files.
 
-A browser cannot connect directly to a stdio MCP server, and modern browsers
-also restrict a public HTTPS page from fetching `localhost`: that transport is
-local-process-only, and exposing it on the public internet would expose private
-health data. The bridge is the safe browser-facing adapter: it stays bound to
-`localhost`, holds the Oura token locally, and serves the dashboard locally.
+## Deployment
 
-If you run `oura-ring-mcp`, point both tools at the same local Oura OAuth app
-and token location (set `OURA_TOKEN_PATH` in each `.env`). They then share the
-same local authorization without putting any token in GitHub Pages.
+Push to `main` publishes `web/`. Set **Pages → Source** to **GitHub Actions**.
 
 ## Never commit
 
-`.env`, tokens, local data, caches, logs, and SQLite files are ignored. Before
-pushing, confirm with:
+`.env`, tokens, local data, caches, logs, and SQLite files are ignored. Check with:
 
 ```bash
 git status --ignored
