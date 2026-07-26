@@ -11,8 +11,9 @@
       main { max-width:1120px; margin:auto; padding:32px 20px 64px } header { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:28px }
       h1 { font-size:clamp(1.6rem,4vw,2.4rem); margin:0 } .sub { color:var(--muted); margin:6px 0 0 } button,select { border:1px solid var(--line); border-radius:9px; padding:10px 13px; color:var(--text); background:var(--panel); font:inherit; cursor:pointer } button.primary { color:#05231e; background:var(--accent); border-color:var(--accent); font-weight:700 }
       .controls { display:flex; gap:9px; align-items:center } #notice { display:none; border:1px solid var(--line); border-radius:12px; background:var(--panel); color:var(--muted); padding:15px; margin-bottom:20px; line-height:1.45 } #notice.error { border-color:#9c4d4b; color:var(--error) }
-      .cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:14px } .card { background:rgba(16,28,44,.88); border:1px solid var(--line); border-radius:14px; padding:18px } .label { color:var(--muted); font-size:.82rem; text-transform:uppercase; letter-spacing:.08em } .value { font-size:2rem; font-weight:750; margin-top:8px }
+      .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:14px } .card { background:rgba(16,28,44,.88); border:1px solid var(--line); border-radius:14px; padding:18px } .label { color:var(--muted); font-size:.82rem; text-transform:uppercase; letter-spacing:.08em } .value { font-size:2rem; font-weight:750; margin-top:8px }
       .chart { background:rgba(16,28,44,.88); border:1px solid var(--line); border-radius:14px; padding:20px } .chart h2 { font-size:1rem; margin:0 0 16px } canvas { max-height:360px }
+      details { margin-top:14px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; color:var(--muted) } summary { cursor:pointer; color:var(--text) } #collections { margin:12px 0 0; white-space:pre-wrap; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.78rem }
       footer { margin-top:20px; color:var(--muted); font-size:.85rem } code { color:var(--accent) } @media (max-width:620px) { .cards{grid-template-columns:1fr} }
     </style>
   </head>
@@ -23,8 +24,9 @@
         <div class="controls"><select id="days"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select><button id="connect" class="primary">Connect Oura</button><button id="refresh">Refresh data</button></div>
       </header>
       <div id="notice"></div>
-      <section class="cards"><div class="card"><div class="label">Sleep score</div><div class="value" id="sleep">—</div></div><div class="card"><div class="label">Readiness score</div><div class="value" id="readiness">—</div></div><div class="card"><div class="label">Activity score</div><div class="value" id="activity">—</div></div></section>
+      <section class="cards"><div class="card"><div class="label">Sleep score</div><div class="value" id="sleep">—</div></div><div class="card"><div class="label">Readiness score</div><div class="value" id="readiness">—</div></div><div class="card"><div class="label">Activity score</div><div class="value" id="activity">—</div></div><div class="card"><div class="label">Latest steps</div><div class="value" id="steps">—</div></div><div class="card"><div class="label">Overnight HRV</div><div class="value" id="hrv">—</div></div><div class="card"><div class="label">SpO₂</div><div class="value" id="spo2">—</div></div></section>
       <section class="chart"><h2>Daily scores</h2><canvas id="scores"></canvas></section>
+      <details><summary>Fetched Oura collections</summary><div id="collections">Connect Oura to load available data.</div></details>
       <footer>Requires the local Oura bridge at <code>localhost:8780</code>. No Oura token is stored in this page or sent to GitHub.</footer>
     </main>
     <script>
@@ -35,7 +37,11 @@
       async function api(path) { const response = await fetch(bridge + path); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Local bridge request failed.'); return body; }
       async function connect() { if (hostedPage) return location.assign('http://localhost:8780'); try { const result = await api('/api/auth/login'); location.assign(result.authorization_url); } catch (error) { notice(error.message, true); } }
       function render(data) {
-        el('sleep').textContent = data.summary.sleep ?? '—'; el('readiness').textContent = data.summary.readiness ?? '—'; el('activity').textContent = data.summary.activity ?? '—';
+        el('sleep').textContent = data.summary.sleep ?? '—'; el('readiness').textContent = data.summary.readiness ?? '—'; el('activity').textContent = data.summary.activity ?? '—'; el('steps').textContent = data.summary.steps?.toLocaleString?.() ?? '—'; el('hrv').textContent = data.summary.hrv ? data.summary.hrv + ' ms' : '—'; el('spo2').textContent = data.summary.spo2 ? data.summary.spo2 + '%' : '—';
+        window.ouraRawData = data.raw;
+        const counts = Object.entries(data.collection_counts).map(([name, count]) => `${name}: ${count}`).join('\n');
+        const failures = Object.entries(data.errors).map(([name, error]) => `${name}: unavailable (${error})`).join('\n');
+        el('collections').textContent = [counts, failures].filter(Boolean).join('\n');
         if (chart) chart.destroy();
         chart = new Chart(el('scores'), { type:'line', data:{ labels:data.daily.map((d) => d.day.slice(5)), datasets:[
           { label:'Sleep', data:data.daily.map((d) => d.sleep_score), borderColor:'#74e6cb', backgroundColor:'transparent', tension:.35 },
@@ -43,7 +49,7 @@
           { label:'Activity', data:data.daily.map((d) => d.activity_score), borderColor:'#ffc978', backgroundColor:'transparent', tension:.35 }
         ]}, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ suggestedMin:50, suggestedMax:100, grid:{color:'#23334a'} }, x:{grid:{display:false}} }, plugins:{legend:{labels:{color:'#edf4ff'}}} } });
       }
-      async function load() { if (hostedPage) { el('connect').textContent = 'Open local dashboard'; notice('The dashboard opens locally so your browser never sends health data or tokens through GitHub Pages. Start the bridge, then select Open local dashboard.'); return; } try { const status = await api('/api/auth/status'); if (!status.connected) { notice('Select Connect Oura to authorize your account.'); return; } notice(''); render(await api('/api/dashboard?days=' + el('days').value)); } catch (error) { notice('Cannot reach the local bridge. Run `npm run start:bridge` from the repository. ' + error.message, true); } }
+      async function load() { if (hostedPage) { el('connect').textContent = 'Open local dashboard'; notice('Opening the local dashboard…'); setTimeout(() => location.replace('http://localhost:8780'), 350); return; } try { const status = await api('/api/auth/status'); if (!status.connected) { notice('Select Connect Oura to authorize your account.'); return; } notice(''); render(await api('/api/dashboard?days=' + el('days').value)); } catch (error) { notice('Cannot reach the local bridge. Run `npm run start:bridge` from the repository. ' + error.message, true); } }
       el('connect').addEventListener('click', connect); el('refresh').addEventListener('click', load); el('days').addEventListener('change', load); load();
     </script>
   </body>

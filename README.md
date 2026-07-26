@@ -27,6 +27,13 @@ settings, set **Pages → Source** to **GitHub Actions**. The site will be at:
    **Connect Oura**. The OAuth flow and token exchange run through `localhost`; the token is written with owner-only
    permissions to `~/.config/oura-analytics/tokens.json`.
 
+The bridge requests every Oura v2 collection available to the app: daily
+scores, sleep, activity, stress, resilience, SpO₂, cardiovascular age, VO₂
+max, workouts, sessions, tags, rest periods, heart rate, and personal info.
+After an upgrade, select **Connect Oura** again to grant any newly requested
+scopes. Collections that Oura does not make available to the account are shown
+as unavailable without blocking the rest of the dashboard.
+
 ## MCP boundary
 
 A browser cannot connect directly to a stdio MCP server, and modern browsers
