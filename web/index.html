@@ -28,11 +28,12 @@
       <footer>Requires the local Oura bridge at <code>localhost:8780</code>. No Oura token is stored in this page or sent to GitHub.</footer>
     </main>
     <script>
-      const bridge = 'http://localhost:8780'; let chart;
+      const hostedPage = location.hostname !== 'localhost';
+      const bridge = hostedPage ? 'http://localhost:8780' : ''; let chart;
       const el = (id) => document.getElementById(id);
       function notice(message, error = false) { const node = el('notice'); node.textContent = message; node.className = error ? 'error' : ''; node.style.display = message ? 'block' : 'none'; }
       async function api(path) { const response = await fetch(bridge + path); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Local bridge request failed.'); return body; }
-      async function connect() { try { const result = await api('/api/auth/login'); location.assign(result.authorization_url); } catch (error) { notice(error.message, true); } }
+      async function connect() { if (hostedPage) return location.assign('http://localhost:8780'); try { const result = await api('/api/auth/login'); location.assign(result.authorization_url); } catch (error) { notice(error.message, true); } }
       function render(data) {
         el('sleep').textContent = data.summary.sleep ?? '—'; el('readiness').textContent = data.summary.readiness ?? '—'; el('activity').textContent = data.summary.activity ?? '—';
         if (chart) chart.destroy();
@@ -42,7 +43,7 @@
           { label:'Activity', data:data.daily.map((d) => d.activity_score), borderColor:'#ffc978', backgroundColor:'transparent', tension:.35 }
         ]}, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ suggestedMin:50, suggestedMax:100, grid:{color:'#23334a'} }, x:{grid:{display:false}} }, plugins:{legend:{labels:{color:'#edf4ff'}}} } });
       }
-      async function load() { try { const status = await api('/api/auth/status'); if (!status.connected) { notice('Start the local bridge, then select Connect Oura to authorize your account.'); return; } notice(''); render(await api('/api/dashboard?days=' + el('days').value)); } catch (error) { notice('Cannot reach the local bridge. Run `npm run start:bridge` from the repository. ' + error.message, true); } }
+      async function load() { if (hostedPage) { el('connect').textContent = 'Open local dashboard'; notice('The dashboard opens locally so your browser never sends health data or tokens through GitHub Pages. Start the bridge, then select Open local dashboard.'); return; } try { const status = await api('/api/auth/status'); if (!status.connected) { notice('Select Connect Oura to authorize your account.'); return; } notice(''); render(await api('/api/dashboard?days=' + el('days').value)); } catch (error) { notice('Cannot reach the local bridge. Run `npm run start:bridge` from the repository. ' + error.message, true); } }
       el('connect').addEventListener('click', connect); el('refresh').addEventListener('click', load); el('days').addEventListener('change', load); load();
     </script>
   </body>

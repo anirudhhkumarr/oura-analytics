@@ -23,17 +23,17 @@ settings, set **Pages → Source** to **GitHub Actions**. The site will be at:
    npm run start:bridge
    ```
 
-5. Open the Pages site and select **Connect Oura**. The OAuth flow and token
-   exchange run through `127.0.0.1`; the token is written with owner-only
+5. Open the Pages site and select **Open local dashboard**, then select
+   **Connect Oura**. The OAuth flow and token exchange run through `localhost`; the token is written with owner-only
    permissions to `~/.config/oura-analytics/tokens.json`.
 
 ## MCP boundary
 
-A browser cannot connect directly to a stdio MCP server: that transport is
+A browser cannot connect directly to a stdio MCP server, and modern browsers
+also restrict a public HTTPS page from fetching `localhost`: that transport is
 local-process-only, and exposing it on the public internet would expose private
 health data. The bridge is the safe browser-facing adapter: it stays bound to
-`localhost`, holds the Oura token locally, and returns only dashboard data to
-the Page.
+`localhost`, holds the Oura token locally, and serves the dashboard locally.
 
 If you run `oura-ring-mcp`, point both tools at the same local Oura OAuth app
 and token location (set `OURA_TOKEN_PATH` in each `.env`). They then share the
