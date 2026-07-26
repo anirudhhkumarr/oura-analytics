@@ -37,6 +37,9 @@ function cors(req, res) {
   if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // Chrome requires this response to a Private Network Access preflight
+  // before an HTTPS public site (GitHub Pages) may call 127.0.0.1.
+  res.setHeader('Access-Control-Allow-Private-Network', 'true');
 }
 async function loadTokens() {
   try { return JSON.parse(await readFile(tokenPath, 'utf8')); } catch { return null; }
