@@ -109,7 +109,7 @@ const server = createServer(async (req, res) => {
   // fetch loopback addresses in modern browsers; opening this local route
   // makes the dashboard and its private-data bridge same-origin instead.
   if (url.pathname === '/') {
-    return send(res, 200, await readFile(new URL('../web/index.html', import.meta.url)), 'text/html; charset=utf-8');
+    return send(res, 200, await readFile(new URL('../web/index.html', import.meta.url), 'utf8'), 'text/html; charset=utf-8');
   }
   if (url.pathname === '/api/auth/callback') {
     if (!url.searchParams.get('code') || url.searchParams.get('state') !== oauthState) return send(res, 400, '<h1>Sign-in failed</h1><p>Please return to the dashboard and try again.</p>', 'text/html');
