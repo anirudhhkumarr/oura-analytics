@@ -7,7 +7,21 @@ import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, extname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const distDir = fileURLToPath(new URL('../dist/', import.meta.url));
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+  '.map': 'application/json',
+};
 
 const envPath = new URL('../.env', import.meta.url);
 const env = Object.fromEntries(
@@ -29,7 +43,10 @@ function send(res, status, body, contentType = 'application/json') {
 }
 function originAllowed(req) {
   const origin = req.headers.origin;
-  return !origin || origin === dashboardOrigin || origin === 'http://localhost:5173';
+  return !origin
+    || origin === dashboardOrigin
+    || origin === `http://localhost:${port}`
+    || origin === 'http://localhost:5173';
 }
 function cors(req, res) {
   const origin = req.headers.origin;
@@ -149,14 +166,30 @@ async function dashboard(days) {
   };
 }
 
+async function serveStatic(res, pathname) {
+  let path = decodeURIComponent(pathname);
+  if (path === '/') path = '/index.html';
+  const filePath = join(distDir, path.replace(/^\//, ''));
+  if (!filePath.startsWith(distDir)) {
+    send(res, 403, { error: 'Forbidden.' });
+    return true;
+  }
+  try {
+    const body = await readFile(filePath);
+    const type = MIME[extname(filePath).toLowerCase()] || 'application/octet-stream';
+    res.writeHead(200, {
+      'Content-Type': type,
+      'Cache-Control': path.endsWith('index.html') ? 'no-store' : 'public, max-age=86400',
+    });
+    res.end(body);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://localhost:${port}`);
-  // Serve the same dashboard locally. A public HTTPS page cannot reliably
-  // fetch loopback addresses in modern browsers; opening this local route
-  // makes the dashboard and its private-data bridge same-origin instead.
-  if (url.pathname === '/') {
-    return send(res, 200, await readFile(new URL('../web/index.html', import.meta.url), 'utf8'), 'text/html; charset=utf-8');
-  }
   if (url.pathname === '/api/auth/callback') {
     if (!url.searchParams.get('code') || url.searchParams.get('state') !== oauthState) {
       return send(res, 400, '<!doctype html><html><head><meta charset="utf-8"><title>Sign-in failed</title></head><body><h1>Sign-in failed</h1><p><a href="/">Return to the dashboard</a> and try again.</p></body></html>', 'text/html; charset=utf-8');
@@ -170,23 +203,34 @@ const server = createServer(async (req, res) => {
       return send(res, 500, `<!doctype html><html><head><meta charset="utf-8"><title>Sign-in failed</title></head><body><h1>Sign-in failed</h1><p>${error.message}</p><p><a href="/">Return to the dashboard</a></p></body></html>`, 'text/html; charset=utf-8');
     }
   }
-  if (!originAllowed(req)) return send(res, 403, { error: 'Origin is not allowed.' });
-  cors(req, res);
-  if (req.method === 'OPTIONS') return send(res, 204, '');
-  if (url.pathname === '/api/health') return send(res, 200, { ok: true });
-  if (url.pathname === '/api/auth/status') return send(res, 200, { connected: Boolean((await loadTokens())?.access_token) });
-  if (url.pathname === '/api/auth/login') {
-    if (!config.OURA_CLIENT_ID || !config.OURA_CLIENT_SECRET) return send(res, 400, { error: 'Add OURA_CLIENT_ID and OURA_CLIENT_SECRET to .env first.' });
-    if (redirectUri !== `http://localhost:${port}/api/auth/callback`) return send(res, 400, { error: `Set the Oura Redirect URI to ${redirectUri} and ensure it points to this bridge.` });
-    oauthState = randomBytes(24).toString('hex');
-    const auth = new URL('https://cloud.ouraring.com/oauth/authorize');
-    auth.search = new URLSearchParams({ response_type: 'code', client_id: config.OURA_CLIENT_ID, redirect_uri: redirectUri, scope: 'email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health', state: oauthState });
-    return send(res, 200, { authorization_url: auth.toString() });
+  if (url.pathname.startsWith('/api/') && url.pathname !== '/api/auth/callback') {
+    if (!originAllowed(req)) return send(res, 403, { error: 'Origin is not allowed.' });
+    cors(req, res);
+    if (req.method === 'OPTIONS') return send(res, 204, '');
+    if (url.pathname === '/api/health') return send(res, 200, { ok: true });
+    if (url.pathname === '/api/auth/status') return send(res, 200, { connected: Boolean((await loadTokens())?.access_token) });
+    if (url.pathname === '/api/auth/login') {
+      if (!config.OURA_CLIENT_ID || !config.OURA_CLIENT_SECRET) return send(res, 400, { error: 'Add OURA_CLIENT_ID and OURA_CLIENT_SECRET to .env first.' });
+      if (redirectUri !== `http://localhost:${port}/api/auth/callback`) return send(res, 400, { error: `Set the Oura Redirect URI to ${redirectUri} and ensure it points to this bridge.` });
+      oauthState = randomBytes(24).toString('hex');
+      const auth = new URL('https://cloud.ouraring.com/oauth/authorize');
+      auth.search = new URLSearchParams({ response_type: 'code', client_id: config.OURA_CLIENT_ID, redirect_uri: redirectUri, scope: 'email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health', state: oauthState });
+      return send(res, 200, { authorization_url: auth.toString() });
+    }
+    if (url.pathname === '/api/dashboard') {
+      try { return send(res, 200, await dashboard(Math.min(Math.max(Number(url.searchParams.get('days')) || 30, 7), 90))); }
+      catch (error) { return send(res, 500, { error: error.message }); }
+    }
+    return send(res, 404, { error: 'Not found.' });
   }
-  if (url.pathname === '/api/dashboard') {
-    try { return send(res, 200, await dashboard(Math.min(Math.max(Number(url.searchParams.get('days')) || 30, 7), 90))); }
-    catch (error) { return send(res, 500, { error: error.message }); }
-  }
-  return send(res, 404, { error: 'Not found.' });
+  // Serve the Vite build so the dashboard and private-data bridge are same-origin.
+  if (await serveStatic(res, url.pathname)) return;
+  if (url.pathname !== '/' && await serveStatic(res, '/')) return;
+  return send(
+    res,
+    503,
+    '<!doctype html><html><head><meta charset="utf-8"><title>Build required</title></head><body><h1>Dashboard build missing</h1><p>Run <code>npm run build</code>, then reload.</p></body></html>',
+    'text/html; charset=utf-8',
+  );
 });
 server.listen(port, 'localhost', () => console.log(`Oura local bridge: http://localhost:${port}`));

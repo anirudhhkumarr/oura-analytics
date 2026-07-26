@@ -1,0 +1,5 @@
+#!/bin/sh
+echo "Running pre-commit checks..."
+npm run lint -- --max-warnings 0 || exit 1
+npm run build || exit 1
+echo "Pre-commit checks passed."
