@@ -1,0 +1,9 @@
+{
+  "name": "oura-analytics",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start:bridge": "node local-bridge/server.mjs"
+  }
+}

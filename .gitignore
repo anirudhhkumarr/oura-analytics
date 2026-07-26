@@ -1,0 +1,23 @@
+# OAuth credentials and local bridge configuration
+.env
+.env.*
+!.env.example
+
+# OAuth tokens and any local data/cache created by the bridge
+tokens.json
+*.tokens.json
+data/
+cache/
+logs/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Dependencies and local tooling
+node_modules/
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/
+coverage/
