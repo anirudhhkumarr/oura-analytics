@@ -93,8 +93,8 @@ export default function RegressionPanel({ rows, metrics, xKey, yKey, onAxesChang
     <section className="panel" id="reg-panel">
       <div className="panel-head">
         <div>
-          <h2>Linear regression</h2>
-          <p className="hint">Fit how a lagged or same-period X relates to Y.</p>
+          <h2>Regression</h2>
+          <p className="hint">Estimate how a predictor relates to an outcome, optionally with lag.</p>
         </div>
         <button type="button" className="primary" onClick={() => setVersion((v) => v + 1)}>
           Run regression

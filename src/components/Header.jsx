@@ -5,11 +5,6 @@ export default function Header({
   onGranularityChange,
   lag,
   onLagChange,
-  clientId,
-  onClientIdChange,
-  apiBase,
-  onApiBaseChange,
-  redirectUri,
   connected,
   onConnect,
   onDisconnect,
@@ -19,29 +14,9 @@ export default function Header({
     <header className="app-header">
       <div>
         <h1>Oura Analytics</h1>
-        <p className="sub">Explore timeseries, lagged correlations, and what drives your recovery.</p>
+        <p className="sub">Explore recovery trends, correlations, and what drives your readiness.</p>
       </div>
       <div className="controls">
-        <label className="field wide">
-          <span>Oura Client ID</span>
-          <input
-            value={clientId}
-            onChange={(e) => onClientIdChange(e.target.value)}
-            placeholder="from Oura developer portal"
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
-        <label className="field wide">
-          <span>API base (optional proxy)</span>
-          <input
-            value={apiBase}
-            onChange={(e) => onApiBaseChange(e.target.value)}
-            placeholder="https://your-worker.workers.dev"
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
         <label className="field">
           <span>Range</span>
           <select value={days} onChange={(e) => onDaysChange(e.target.value)}>
@@ -59,7 +34,7 @@ export default function Header({
           </select>
         </label>
         <label className="field">
-          <span>Lag (X offset)</span>
+          <span>Lag</span>
           <select value={String(lag)} onChange={(e) => onLagChange(Number(e.target.value))}>
             <option value="0">0 periods</option>
             <option value="1">1 period</option>
@@ -69,18 +44,13 @@ export default function Header({
           </select>
         </label>
         <button type="button" className="primary" onClick={onConnect}>
-          {connected ? 'Reconnect Oura' : 'Connect Oura'}
+          {connected ? 'Reconnect' : 'Connect Oura'}
         </button>
         {connected ? (
           <button type="button" onClick={onDisconnect}>Disconnect</button>
         ) : null}
-        <button type="button" onClick={onRefresh}>Refresh data</button>
+        <button type="button" onClick={onRefresh}>Refresh</button>
       </div>
-      <p className="redirect-hint">
-        Oura Redirect URI (register exactly):
-        {' '}
-        <code>{redirectUri}</code>
-      </p>
     </header>
   );
 }

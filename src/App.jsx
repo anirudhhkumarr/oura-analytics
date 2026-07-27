@@ -33,11 +33,6 @@ export default function App() {
     connect,
     disconnect,
     connected,
-    clientId,
-    saveClientId,
-    apiBase,
-    saveApiBase,
-    redirectUri,
   } = useDashboard();
 
   const tsSelected = useMemo(
@@ -72,11 +67,6 @@ export default function App() {
         onGranularityChange={setGranularity}
         lag={lag}
         onLagChange={setLag}
-        clientId={clientId}
-        onClientIdChange={saveClientId}
-        apiBase={apiBase}
-        onApiBaseChange={saveApiBase}
-        redirectUri={redirectUri}
         connected={connected}
         onConnect={connect}
         onDisconnect={disconnect}
@@ -125,14 +115,11 @@ export default function App() {
       ) : (
         <section className="panel">
           <h2>Analytics</h2>
-          <p className="hint">Connect Oura and load data to unlock timeseries, correlation, regression, and clustering.</p>
+          <p className="hint">Connect your Oura account to explore timeseries, correlation, regression, and clustering.</p>
         </section>
       )}
 
       <CollectionsDetails dashboard={dashboard} />
-      <footer>
-        OAuth token and SQLite cache stay in this browser&apos;s localStorage. No local backend required.
-      </footer>
     </main>
   );
 }

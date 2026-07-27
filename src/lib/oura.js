@@ -14,8 +14,7 @@ async function oura(path, query = {}) {
       response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     } catch (error) {
       throw new Error(
-        `Could not reach the Oura API (${error.message}). `
-        + 'Oura blocks most browser origins — set an API proxy URL (see README) or use npm run dev.',
+        `Could not reach the Oura API (${error.message}). Please try again shortly.`,
       );
     }
     if (!response.ok) {

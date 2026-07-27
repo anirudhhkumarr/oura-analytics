@@ -50,9 +50,9 @@ export default function CorrelationPanel({
     <section className="panel" id="corr-panel">
       <div className="panel-head">
         <div>
-          <h2>Correlation analysis</h2>
+          <h2>Correlation</h2>
           <p className="hint">
-            Pearson correlations. With lag &gt; 0, each cell is corr(column<sub>t−lag</sub>, row<sub>t</sub>).
+            Pearson relationships across selected metrics. Lag shifts the predictor earlier in time.
           </p>
         </div>
         <button type="button" className="primary" onClick={() => setVersion((v) => v + 1)}>

@@ -1,6 +1,6 @@
+import { OURA_API_BASE, OURA_CLIENT_ID } from './config.js';
+
 const TOKEN_KEY = 'oura-analytics-tokens';
-const CLIENT_KEY = 'oura-analytics-client-id';
-const API_BASE_KEY = 'oura-analytics-api-base';
 const STATE_KEY = 'oura-analytics-oauth-state';
 const SCOPE = 'email personal daily heartrate tag workout session spo2 ring_configuration stress heart_health';
 
@@ -15,40 +15,12 @@ export function redirectUri() {
 }
 
 export function getClientId() {
-  try {
-    const stored = localStorage.getItem(CLIENT_KEY);
-    if (stored) return stored;
-  } catch {
-    /* ignore */
-  }
-  return import.meta.env.VITE_OURA_CLIENT_ID || '';
-}
-
-export function setClientId(clientId) {
-  const value = String(clientId || '').trim();
-  if (value) localStorage.setItem(CLIENT_KEY, value);
-  else localStorage.removeItem(CLIENT_KEY);
-  return value;
+  return OURA_CLIENT_ID;
 }
 
 export function getApiBase() {
-  try {
-    const stored = localStorage.getItem(API_BASE_KEY);
-    if (stored) return stored.replace(/\/$/, '');
-  } catch {
-    /* ignore */
-  }
-  if (import.meta.env.VITE_OURA_API_BASE) {
-    return String(import.meta.env.VITE_OURA_API_BASE).replace(/\/$/, '');
-  }
-  return import.meta.env.DEV ? '/oura-api' : 'https://api.ouraring.com';
-}
-
-export function setApiBase(base) {
-  const value = String(base || '').trim().replace(/\/$/, '');
-  if (value) localStorage.setItem(API_BASE_KEY, value);
-  else localStorage.removeItem(API_BASE_KEY);
-  return getApiBase();
+  if (import.meta.env.DEV) return '/oura-api';
+  return OURA_API_BASE;
 }
 
 export function loadTokens() {
@@ -75,7 +47,7 @@ export function isConnected() {
 export function startOuraLogin() {
   const clientId = getClientId();
   if (!clientId) {
-    throw new Error('Add your Oura Client ID first (from cloud.ouraring.com/oauth/applications).');
+    throw new Error('Oura Client ID is not configured for this build.');
   }
   const state = crypto.randomUUID();
   sessionStorage.setItem(STATE_KEY, state);
@@ -110,7 +82,7 @@ export function consumeOAuthRedirect() {
   sessionStorage.removeItem(STATE_KEY);
   const state = params.get('state');
   if (expected && state && expected !== state) {
-    throw new Error('OAuth state mismatch. Try Connect Oura again.');
+    throw new Error('Authorization failed. Please try connecting again.');
   }
 
   const expiresIn = Number(params.get('expires_in') || 0);
@@ -127,10 +99,10 @@ export function consumeOAuthRedirect() {
 
 export async function accessToken() {
   const tokens = loadTokens();
-  if (!tokens?.access_token) throw new Error('Connect your Oura account first.');
+  if (!tokens?.access_token) throw new Error('Connect your Oura account to continue.');
   if (tokens.expires_at && Date.now() >= tokens.expires_at - 60_000) {
     clearTokens();
-    throw new Error('Oura access token expired. Select Connect Oura to authorize again.');
+    throw new Error('Your session expired. Please connect again.');
   }
   return tokens.access_token;
 }

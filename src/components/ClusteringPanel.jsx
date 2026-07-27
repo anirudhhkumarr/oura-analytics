@@ -91,7 +91,7 @@ export default function ClusteringPanel({
         <div>
           <h2>Clustering</h2>
           <p className="hint">
-            Group similar periods with k-means on z-scored features. Scatter uses the first two selected features.
+            Group similar periods with k-means. The scatter uses the first two selected metrics.
           </p>
         </div>
         <button type="button" className="primary" onClick={() => setVersion((v) => v + 1)}>

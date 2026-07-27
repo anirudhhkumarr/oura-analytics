@@ -71,9 +71,9 @@ export default function TimeseriesPanel({ rows, metrics, selected, onSelectedCha
     <section className="panel">
       <div className="panel-head">
         <div>
-          <h2>Timeseries explorer</h2>
+          <h2>Timeseries</h2>
           <p className="hint">
-            Select metrics to plot on {granularity} data. Score-scale and magnitude metrics use separate Y-axes.
+            Plot selected metrics over time. Scores and magnitude metrics use separate axes when mixed.
           </p>
         </div>
       </div>

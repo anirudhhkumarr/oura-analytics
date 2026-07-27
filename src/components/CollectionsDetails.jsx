@@ -2,8 +2,8 @@ export default function CollectionsDetails({ dashboard }) {
   if (!dashboard) {
     return (
       <details>
-        <summary>Fetched Oura collections</summary>
-        <div className="collections">Connect Oura to load available data.</div>
+        <summary>Data collections</summary>
+        <div className="collections">Connect your account to load available collections.</div>
       </details>
     );
   }
@@ -15,7 +15,7 @@ export default function CollectionsDetails({ dashboard }) {
     .join('\n');
   return (
     <details>
-      <summary>Fetched Oura collections</summary>
+      <summary>Data collections</summary>
       <div className="collections">{[counts, failures].filter(Boolean).join('\n') || 'No collections loaded.'}</div>
     </details>
   );

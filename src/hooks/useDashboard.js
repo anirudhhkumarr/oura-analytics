@@ -2,12 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   clearTokens,
   consumeOAuthRedirect,
-  getApiBase,
-  getClientId,
   isConnected,
-  redirectUri,
-  setApiBase as persistApiBase,
-  setClientId as persistClientId,
   startOuraLogin,
 } from '../lib/auth.js';
 import { cacheAge, cacheGet, cachePut } from '../lib/cache.js';
@@ -32,7 +27,7 @@ function bootstrapAuth() {
   try {
     const tokens = consumeOAuthRedirect();
     if (tokens) {
-      return { connected: true, notice: { message: 'Connected to Oura. Loading your data…', error: false } };
+      return { connected: true, notice: { message: 'Connected. Loading your data…', error: false } };
     }
     return { connected: isConnected(), notice: { message: '', error: false } };
   } catch (error) {
@@ -50,8 +45,6 @@ export function useDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [notice, setNotice] = useState(authBoot.notice);
   const [loading, setLoading] = useState(false);
-  const [clientId, setClientIdState] = useState(() => getClientId());
-  const [apiBase, setApiBaseState] = useState(() => getApiBase());
   const [connected, setConnected] = useState(authBoot.connected);
 
   const persistUi = useCallback((patch) => {
@@ -77,16 +70,6 @@ export function useDashboard() {
     persistUi({ lag: value });
   }, [persistUi]);
 
-  const saveClientId = useCallback((value) => {
-    const next = persistClientId(value);
-    setClientIdState(next);
-  }, []);
-
-  const saveApiBase = useCallback((value) => {
-    const next = persistApiBase(value);
-    setApiBaseState(next);
-  }, []);
-
   const daily = useMemo(() => {
     if (!dashboard?.raw) return { rows: [], metrics: [] };
     return buildDailySeries(dashboard.raw);
@@ -110,9 +93,7 @@ export function useDashboard() {
       if (!isConnected()) {
         setConnected(false);
         setNotice({
-          message: clientId
-            ? 'Select Connect Oura to authorize your account.'
-            : 'Enter your Oura Client ID, set the Redirect URI in the Oura developer portal to this page, then Connect Oura.',
+          message: 'Connect your Oura account to get started.',
           error: false,
         });
         return;
@@ -135,7 +116,7 @@ export function useDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [days, clientId]);
+  }, [days]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -156,7 +137,7 @@ export function useDashboard() {
     clearTokens();
     setConnected(false);
     setDashboard(null);
-    setNotice({ message: 'Disconnected. Select Connect Oura to authorize again.', error: false });
+    setNotice({ message: 'Disconnected.', error: false });
   }, []);
 
   return {
@@ -177,10 +158,5 @@ export function useDashboard() {
     connect,
     disconnect,
     connected,
-    clientId,
-    saveClientId,
-    apiBase,
-    saveApiBase,
-    redirectUri: redirectUri(),
   };
 }

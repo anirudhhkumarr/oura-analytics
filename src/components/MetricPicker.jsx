@@ -5,7 +5,7 @@ export default function MetricPicker({ metrics, selected, onChange }) {
   return (
     <div className="metric-grid">
       {metrics.map((key, index) => (
-        <label key={key}>
+        <label key={key} className="metric-option">
           <input
             type="checkbox"
             checked={selectedSet.has(key)}
@@ -16,8 +16,8 @@ export default function MetricPicker({ metrics, selected, onChange }) {
               onChange(next);
             }}
           />
-          <span className="swatch" style={{ background: metricColor(key, index) }} />
-          {metricLabel(key)}
+          <span className="swatch" style={{ background: metricColor(key, index) }} aria-hidden="true" />
+          <span className="metric-name">{metricLabel(key)}</span>
         </label>
       ))}
     </div>

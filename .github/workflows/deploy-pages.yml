@@ -32,8 +32,8 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_OURA_CLIENT_ID: ${{ secrets.VITE_OURA_CLIENT_ID }}
-          VITE_OURA_API_BASE: ${{ secrets.VITE_OURA_API_BASE }}
+          VITE_OURA_CLIENT_ID: e11ec84d-5224-431d-8dbf-736690fbb75d
+          VITE_OURA_API_BASE: https://oura-analytics-proxy.anirudhkumar.workers.dev
       - uses: actions/configure-pages@v5
         with:
           enablement: true
