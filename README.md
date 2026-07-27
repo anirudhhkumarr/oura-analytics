@@ -7,33 +7,36 @@ Personal Oura dashboard.
 ## Setup
 
 1. Create an Oura OAuth application at <https://cloud.ouraring.com/oauth/applications>.
-2. Copy `.env.example` to `.env`, then set the client ID and client secret.
-3. Set the Oura Redirect URI to `http://localhost:8780/api/auth/callback`.
-4. Install and build:
+2. Set the Oura Redirect URI to your dashboard URL (shown on the page), for example:
+   - `https://anirudhhkumarr.github.io/oura-analytics/`
+   - `http://localhost:5173/` for local development
+3. Open the site, paste the **Client ID**, then select **Connect Oura**.
 
-   ```bash
-   npm install
-   npm run build
-   ```
+Auth runs entirely in the browser (implicit grant). The OAuth access token is saved in `localStorage` and used for API calls. Dashboard snapshots are stored in SQLite via sql.js, also persisted in `localStorage`.
 
-5. Start the local bridge:
+### API proxy (needed on the published site)
 
-   ```bash
-   npm run start:bridge
-   ```
-
-6. Open the site or `http://localhost:8780`, then select **Connect Oura**.
-
-For local UI development with hot reload:
+Oura’s API rejects most browser origins (`Disallowed CORS origin`). Local `npm run dev` proxies through Vite automatically. For GitHub Pages, deploy the optional Cloudflare Worker once:
 
 ```bash
-npm run start:bridge
-npm run dev
+npx wrangler deploy cloudflare/oura-proxy.js --name oura-analytics-proxy
 ```
 
-Tokens are stored at `~/.config/oura-analytics/tokens.json`.
+Paste the worker URL into **API base** on the dashboard (stored in `localStorage`).
 
-If you also use `oura-ring-mcp`, set the same `OURA_TOKEN_PATH` in both `.env` files.
+Optional build-time defaults (`.env`):
+
+```bash
+VITE_OURA_CLIENT_ID=
+VITE_OURA_API_BASE=
+```
+
+## Local development
+
+```bash
+npm install
+npm run dev
+```
 
 ## Git hooks
 

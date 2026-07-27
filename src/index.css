@@ -44,14 +44,23 @@ h1 {
 }
 
 button,
-select {
+select,
+input {
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 10px 13px;
   color: var(--text);
   background: var(--panel);
   font: inherit;
+}
+
+button,
+select {
   cursor: pointer;
+}
+
+input {
+  min-width: 220px;
 }
 
 button.primary {
@@ -193,11 +202,28 @@ button:disabled {
   gap: 6px;
 }
 
+.field.wide input {
+  min-width: min(320px, 70vw);
+}
+
 .field span {
   font-size: 0.78rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.redirect-hint {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.redirect-hint code {
+  color: var(--accent);
+  word-break: break-all;
 }
 
 .insight {

@@ -1,0 +1,5 @@
+{
+  "name": "oura-analytics-proxy",
+  "compatibility_date": "2026-07-27",
+  "main": "cloudflare/oura-proxy.js"
+}

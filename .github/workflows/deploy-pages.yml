@@ -31,6 +31,9 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build
+        env:
+          VITE_OURA_CLIENT_ID: ${{ secrets.VITE_OURA_CLIENT_ID }}
+          VITE_OURA_API_BASE: ${{ secrets.VITE_OURA_API_BASE }}
       - uses: actions/configure-pages@v5
         with:
           enablement: true

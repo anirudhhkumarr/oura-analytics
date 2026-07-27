@@ -1,9 +1,9 @@
-# OAuth credentials and local bridge configuration
+# OAuth credentials and local configuration
 .env
 .env.*
 !.env.example
 
-# OAuth tokens and any local data/cache created by the bridge
+# Local data / caches
 tokens.json
 *.tokens.json
 data/
@@ -22,3 +22,4 @@ npm-debug.log*
 .vscode/
 coverage/
 dist/
+.wrangler/

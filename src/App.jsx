@@ -31,7 +31,13 @@ export default function App() {
     notice,
     load,
     connect,
-    isHosted,
+    disconnect,
+    connected,
+    clientId,
+    saveClientId,
+    apiBase,
+    saveApiBase,
+    redirectUri,
   } = useDashboard();
 
   const tsSelected = useMemo(
@@ -66,9 +72,15 @@ export default function App() {
         onGranularityChange={setGranularity}
         lag={lag}
         onLagChange={setLag}
+        clientId={clientId}
+        onClientIdChange={saveClientId}
+        apiBase={apiBase}
+        onApiBaseChange={saveApiBase}
+        redirectUri={redirectUri}
+        connected={connected}
         onConnect={connect}
+        onDisconnect={disconnect}
         onRefresh={() => load({ force: true })}
-        isHosted={isHosted}
       />
       <Notice message={notice.message} error={notice.error} />
       <SummaryCards summary={dashboard?.summary} />
@@ -119,8 +131,7 @@ export default function App() {
 
       <CollectionsDetails dashboard={dashboard} />
       <footer>
-        Connects through a local bridge at <code>localhost:8780</code>.
-        Dashboard data is cached in this browser; your Oura token stays on your computer.
+        OAuth token and SQLite cache stay in this browser&apos;s localStorage. No local backend required.
       </footer>
     </main>
   );

@@ -5,9 +5,15 @@ export default function Header({
   onGranularityChange,
   lag,
   onLagChange,
+  clientId,
+  onClientIdChange,
+  apiBase,
+  onApiBaseChange,
+  redirectUri,
+  connected,
   onConnect,
+  onDisconnect,
   onRefresh,
-  isHosted,
 }) {
   return (
     <header className="app-header">
@@ -16,6 +22,26 @@ export default function Header({
         <p className="sub">Explore timeseries, lagged correlations, and what drives your recovery.</p>
       </div>
       <div className="controls">
+        <label className="field wide">
+          <span>Oura Client ID</span>
+          <input
+            value={clientId}
+            onChange={(e) => onClientIdChange(e.target.value)}
+            placeholder="from Oura developer portal"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
+        <label className="field wide">
+          <span>API base (optional proxy)</span>
+          <input
+            value={apiBase}
+            onChange={(e) => onApiBaseChange(e.target.value)}
+            placeholder="https://your-worker.workers.dev"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
         <label className="field">
           <span>Range</span>
           <select value={days} onChange={(e) => onDaysChange(e.target.value)}>
@@ -43,10 +69,18 @@ export default function Header({
           </select>
         </label>
         <button type="button" className="primary" onClick={onConnect}>
-          {isHosted ? 'Open dashboard' : 'Connect Oura'}
+          {connected ? 'Reconnect Oura' : 'Connect Oura'}
         </button>
+        {connected ? (
+          <button type="button" onClick={onDisconnect}>Disconnect</button>
+        ) : null}
         <button type="button" onClick={onRefresh}>Refresh data</button>
       </div>
+      <p className="redirect-hint">
+        Oura Redirect URI (register exactly):
+        {' '}
+        <code>{redirectUri}</code>
+      </p>
     </header>
   );
 }
