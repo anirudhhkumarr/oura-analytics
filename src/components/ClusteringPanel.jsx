@@ -6,7 +6,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Scatter } from 'react-chartjs-2';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import MetricPicker from './MetricPicker.jsx';
 import { CLUSTER_COLORS, metricLabel } from '../lib/metrics.js';
 import { bestKmeans } from '../lib/stats.js';
@@ -21,10 +21,7 @@ export default function ClusteringPanel({
   k,
   onKChange,
 }) {
-  const [version, setVersion] = useState(0);
-
   const result = useMemo(() => {
-    void version;
     const keys = selected.filter((key) => metrics.includes(key));
     if (keys.length < 2) {
       return { insight: 'Select at least two features for clustering.', chart: null, table: null };
@@ -83,7 +80,7 @@ export default function ClusteringPanel({
       },
       table: { keys, centroids: clustered.centroids, counts: clustered.counts, k },
     };
-  }, [rows, metrics, selected, k, version]);
+  }, [rows, metrics, selected, k]);
 
   return (
     <section className="panel">
@@ -94,9 +91,6 @@ export default function ClusteringPanel({
             Group similar periods with k-means. The scatter uses the first two selected metrics.
           </p>
         </div>
-        <button type="button" className="primary" onClick={() => setVersion((v) => v + 1)}>
-          Run clustering
-        </button>
       </div>
       <div className="row-controls">
         <label className="field">

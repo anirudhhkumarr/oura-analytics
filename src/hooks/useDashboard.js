@@ -5,8 +5,8 @@ import {
   isConnected,
   startOuraLogin,
 } from '../lib/auth.js';
-import { cacheAge, cacheGet, cachePut } from '../lib/cache.js';
-import { fetchDashboard } from '../lib/oura.js';
+import { cacheAge } from '../lib/cache.js';
+import { fetchDashboard, hasRemoteSyncUpdate, loadCachedDashboard } from '../lib/oura.js';
 import { aggregateRows, availableMetricsFor, buildDailySeries } from '../lib/series.js';
 
 const UI_KEY = 'oura-analytics-ui';
@@ -84,30 +84,42 @@ export function useDashboard() {
 
   const load = useCallback(async ({ force = false } = {}) => {
     setLoading(true);
-    const cached = await cacheGet(days);
-    if (cached?.data && !force) {
-      setDashboard(cached.data);
-      setNotice({ message: `Showing cached data (${cacheAge(cached.fetchedAt)}). Updating…`, error: false });
+    const cached = await loadCachedDashboard(Number(days));
+    if (cached && !force) {
+      setDashboard(cached);
+      const when = cached.cache?.lastFetchAt
+        ? ` (${cacheAge(cached.cache.lastFetchAt)})`
+        : '';
+      setNotice({ message: `Showing cached history${when}. Checking for updates…`, error: false });
     }
     try {
       if (!isConnected()) {
         setConnected(false);
         setNotice({
-          message: 'Connect your Oura account to get started.',
+          message: cached
+            ? 'Showing cached history. Connect Oura to refresh.'
+            : 'Connect your Oura account to get started.',
           error: false,
         });
         return;
       }
       setConnected(true);
-      const data = await fetchDashboard(Number(days));
-      await cachePut(days, data);
+      const data = await fetchDashboard(Number(days), {
+        force,
+        onProgress: (message) => setNotice({ message, error: false }),
+      });
       setDashboard(data);
-      setNotice({ message: '', error: false });
+      setNotice({
+        message: data.cache?.reusedHistory
+          ? 'Updated recent days. Older history served from local cache.'
+          : '',
+        error: false,
+      });
     } catch (error) {
-      if (cached?.data) {
-        setDashboard(cached.data);
+      if (cached) {
+        setDashboard(cached);
         setNotice({
-          message: `Showing cached data (${cacheAge(cached.fetchedAt)}). ${error.message}`,
+          message: `Showing cached history. ${error.message}`,
           error: true,
         });
       } else {
@@ -124,6 +136,19 @@ export function useDashboard() {
     }, 0);
     return () => window.clearTimeout(handle);
   }, [load]);
+
+  useEffect(() => {
+    if (!connected) return undefined;
+    const poll = window.setInterval(() => {
+      void (async () => {
+        const lastFetchAt = dashboard?.cache?.lastFetchAt;
+        if (await hasRemoteSyncUpdate(lastFetchAt)) {
+          await load({ force: false });
+        }
+      })();
+    }, 60_000);
+    return () => window.clearInterval(poll);
+  }, [connected, dashboard?.cache?.lastFetchAt, load]);
 
   const connect = useCallback(async () => {
     try {

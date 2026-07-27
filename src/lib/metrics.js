@@ -31,6 +31,20 @@ export function metricLabel(key) {
   return METRIC_DEFS[key]?.label || key;
 }
 
+/** Predictor label; appends (t−lag) when lag > 0. */
+export function laggedMetricLabel(key, lag = 0) {
+  const base = metricLabel(key);
+  const n = Math.max(0, Number(lag) || 0);
+  return n > 0 ? `${base} (t−${n})` : base;
+}
+
+/** Outcome label; appends (t) when lag > 0 so both sides stay explicit. */
+export function currentMetricLabel(key, lag = 0) {
+  const base = metricLabel(key);
+  const n = Math.max(0, Number(lag) || 0);
+  return n > 0 ? `${base} (t)` : base;
+}
+
 export function metricColor(key, index) {
   return COLORS[index % COLORS.length];
 }

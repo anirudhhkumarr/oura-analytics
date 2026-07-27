@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import MetricPicker from './MetricPicker.jsx';
-import { metricLabel } from '../lib/metrics.js';
+import { currentMetricLabel, laggedMetricLabel } from '../lib/metrics.js';
 import { paired } from '../lib/series.js';
 import { heatColor, pearson } from '../lib/stats.js';
 
@@ -12,52 +12,46 @@ export default function CorrelationPanel({
   lag,
   onPickRegression,
 }) {
-  const [version, setVersion] = useState(0);
-
   const result = useMemo(() => {
-    void version;
     const keys = selected.filter((key) => metrics.includes(key));
     if (keys.length < 2) {
       return { insight: 'Select at least two metrics for correlation.', matrix: null, pairs: [] };
     }
-    const matrix = keys.map((a) => keys.map((b) => {
-      const points = paired(rows, b, a, lag);
+    // Cell [row][col] = corr(col at t−lag, row at t).
+    const matrix = keys.map((rowKey) => keys.map((colKey) => {
+      const points = paired(rows, colKey, rowKey, lag);
       return pearson(points.map((p) => p.x), points.map((p) => p.y));
     }));
     const pairs = [];
     for (let i = 0; i < keys.length; i += 1) {
       for (let j = i + 1; j < keys.length; j += 1) {
         const r = matrix[i][j];
-        if (r != null) pairs.push({ a: keys[i], b: keys[j], r });
+        if (r != null) pairs.push({ x: keys[j], y: keys[i], r });
       }
     }
     pairs.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
     const top = pairs[0];
-    const lagNote = lag > 0
-      ? ` X is lagged by ${lag} period${lag === 1 ? '' : 's'} (previous values).`
-      : '';
     return {
       keys,
       matrix,
       pairs: pairs.slice(0, 5),
       insight: top
-        ? `Strongest link: ${metricLabel(top.a)} and ${metricLabel(top.b)} (r = ${top.r.toFixed(2)}). Click a cell to inspect with regression.${lagNote}`
-        : `Not enough overlapping periods to compute correlations.${lagNote}`,
+        ? `Strongest link: ${laggedMetricLabel(top.x, lag)} → ${currentMetricLabel(top.y, lag)} (r = ${top.r.toFixed(2)}). Click a cell to inspect with regression.`
+        : 'Not enough overlapping periods to compute correlations.',
     };
-  }, [rows, metrics, selected, lag, version]);
+  }, [rows, metrics, selected, lag]);
 
   return (
     <section className="panel" id="corr-panel">
       <div className="panel-head">
         <div>
-          <h2>Correlation</h2>
+          <h2>Correlation{lag > 0 ? ` · lag ${lag}` : ''}</h2>
           <p className="hint">
-            Pearson relationships across selected metrics. Lag shifts the predictor earlier in time.
+            {lag > 0
+              ? `Columns are predictors at t−${lag}; rows are outcomes at t.`
+              : 'Pearson relationships across selected metrics.'}
           </p>
         </div>
-        <button type="button" className="primary" onClick={() => setVersion((v) => v + 1)}>
-          Run correlation
-        </button>
       </div>
       <MetricPicker metrics={metrics} selected={selected} onChange={onSelectedChange} />
       {result.matrix ? (
@@ -65,21 +59,23 @@ export default function CorrelationPanel({
           <table className="heatmap">
             <thead>
               <tr>
-                <th />
-                {result.keys.map((key) => <th key={key}>{metricLabel(key)}</th>)}
+                <th>{lag > 0 ? `row (t) \\ col (t−${lag})` : ''}</th>
+                {result.keys.map((key) => (
+                  <th key={key}>{laggedMetricLabel(key, lag)}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {result.keys.map((rowKey, i) => (
                 <tr key={rowKey}>
-                  <th>{metricLabel(rowKey)}</th>
+                  <th>{currentMetricLabel(rowKey, lag)}</th>
                   {result.keys.map((colKey, j) => {
                     const r = result.matrix[i][j];
                     return (
                       <td
                         key={colKey}
                         style={{ background: heatColor(r) }}
-                        title="Set regression axes"
+                        title={`${laggedMetricLabel(colKey, lag)} → ${currentMetricLabel(rowKey, lag)}`}
                         onClick={() => onPickRegression(colKey, rowKey)}
                       >
                         {r == null ? '—' : r.toFixed(2)}
@@ -94,8 +90,8 @@ export default function CorrelationPanel({
       ) : null}
       <ul className="pairs">
         {result.pairs.map((pair) => (
-          <li key={`${pair.a}-${pair.b}`}>
-            {metricLabel(pair.a)} ↔ {metricLabel(pair.b)}: r = {pair.r.toFixed(2)} ({pair.r >= 0 ? 'positive' : 'negative'})
+          <li key={`${pair.x}-${pair.y}`}>
+            {laggedMetricLabel(pair.x, lag)} → {currentMetricLabel(pair.y, lag)}: r = {pair.r.toFixed(2)} ({pair.r >= 0 ? 'positive' : 'negative'})
           </li>
         ))}
       </ul>

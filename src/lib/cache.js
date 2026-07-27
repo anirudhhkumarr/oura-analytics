@@ -2,6 +2,7 @@ import initSqlJs from 'sql.js';
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url';
 
 const DB_KEY = 'oura-analytics-sqlite';
+const SCHEMA_VERSION = 2;
 
 let dbPromise;
 
@@ -29,6 +30,37 @@ function persist(db) {
   }
 }
 
+function migrate(db) {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS items (
+      collection TEXT NOT NULL,
+      id TEXT NOT NULL,
+      day TEXT,
+      payload TEXT NOT NULL,
+      PRIMARY KEY (collection, id)
+    )
+  `);
+  db.run('CREATE INDEX IF NOT EXISTS idx_items_collection_day ON items(collection, day)');
+
+  const versionRow = db.exec("SELECT value FROM meta WHERE key = 'schema_version'");
+  const version = Number(versionRow[0]?.values?.[0]?.[0] || 0);
+  if (version < SCHEMA_VERSION) {
+    // Drop legacy whole-dashboard blobs; history is stored per item now.
+    db.run('DROP TABLE IF EXISTS dashboard_cache');
+    db.run(
+      "INSERT INTO meta (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      [String(SCHEMA_VERSION)],
+    );
+    persist(db);
+  }
+}
+
 async function openDb() {
   if (!dbPromise) {
     dbPromise = (async () => {
@@ -40,47 +72,128 @@ async function openDb() {
       } catch {
         db = new SQL.Database();
       }
-      db.run(`
-        CREATE TABLE IF NOT EXISTS dashboard_cache (
-          days TEXT PRIMARY KEY,
-          payload TEXT NOT NULL,
-          fetched_at INTEGER NOT NULL
-        )
-      `);
+      migrate(db);
       return db;
     })();
   }
   return dbPromise;
 }
 
-export async function cacheGet(days) {
+export function itemDay(item) {
+  if (!item || typeof item !== 'object') return null;
+  if (item.day) return item.day;
+  const stamp = item.timestamp || item.bedtime_start || item.start_datetime || item.start_time || '';
+  return stamp ? String(stamp).slice(0, 10) : null;
+}
+
+export function itemId(item, fallback = 'item') {
+  if (item?.id != null) return String(item.id);
+  const day = itemDay(item);
+  return day ? `${day}:${fallback}` : fallback;
+}
+
+export async function upsertCollectionItems(collection, items) {
+  if (!Array.isArray(items) || !items.length) return;
+  try {
+    const db = await openDb();
+    db.run('BEGIN');
+    try {
+      for (const [index, item] of items.entries()) {
+        db.run(
+          `INSERT INTO items (collection, id, day, payload)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(collection, id) DO UPDATE SET
+             day = excluded.day,
+             payload = excluded.payload`,
+          [
+            collection,
+            itemId(item, String(index)),
+            itemDay(item),
+            JSON.stringify(item),
+          ],
+        );
+      }
+      db.run('COMMIT');
+    } catch (error) {
+      db.run('ROLLBACK');
+      throw error;
+    }
+    persist(db);
+  } catch {
+    /* best-effort */
+  }
+}
+
+export async function upsertSingleton(collection, value) {
+  try {
+    const db = await openDb();
+    db.run(
+      `INSERT INTO items (collection, id, day, payload)
+       VALUES (?, 'self', NULL, ?)
+       ON CONFLICT(collection, id) DO UPDATE SET payload = excluded.payload`,
+      [collection, JSON.stringify(value)],
+    );
+    persist(db);
+  } catch {
+    /* best-effort */
+  }
+}
+
+export async function getCollectionItems(collection, { startDay = null, endDay = null } = {}) {
+  try {
+    const db = await openDb();
+    let sql = 'SELECT payload FROM items WHERE collection = ?';
+    const params = [collection];
+    if (startDay && endDay) {
+      sql += ' AND (day IS NULL OR (day >= ? AND day <= ?))';
+      params.push(startDay, endDay);
+    } else if (startDay) {
+      sql += ' AND (day IS NULL OR day >= ?)';
+      params.push(startDay);
+    } else if (endDay) {
+      sql += ' AND (day IS NULL OR day <= ?)';
+      params.push(endDay);
+    }
+    sql += ' ORDER BY day ASC';
+    const result = db.exec(sql, params);
+    const rows = result[0]?.values || [];
+    return rows.map(([payload]) => JSON.parse(payload));
+  } catch {
+    return [];
+  }
+}
+
+export async function getSingleton(collection) {
   try {
     const db = await openDb();
     const result = db.exec(
-      'SELECT payload, fetched_at FROM dashboard_cache WHERE days = ?',
-      [String(days)],
+      "SELECT payload FROM items WHERE collection = ? AND id = 'self' LIMIT 1",
+      [collection],
     );
-    const row = result[0]?.values?.[0];
-    if (!row) return null;
-    return {
-      data: JSON.parse(row[0]),
-      fetchedAt: row[1],
-    };
+    const payload = result[0]?.values?.[0]?.[0];
+    return payload ? JSON.parse(payload) : null;
   } catch {
     return null;
   }
 }
 
-export async function cachePut(days, data) {
+export async function getMeta(key) {
+  try {
+    const db = await openDb();
+    const result = db.exec('SELECT value FROM meta WHERE key = ?', [key]);
+    return result[0]?.values?.[0]?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setMeta(key, value) {
   try {
     const db = await openDb();
     db.run(
-      `INSERT INTO dashboard_cache (days, payload, fetched_at)
-       VALUES (?, ?, ?)
-       ON CONFLICT(days) DO UPDATE SET
-         payload = excluded.payload,
-         fetched_at = excluded.fetched_at`,
-      [String(days), JSON.stringify(data), Date.now()],
+      `INSERT INTO meta (key, value) VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [key, String(value)],
     );
     persist(db);
   } catch {
