@@ -39,14 +39,14 @@ export default function Header({
             </span>
           </label>
           <label className="control">
-            <span className="control-label">Look back</span>
+            <span className="control-label">Compare with</span>
             <span className="select-wrap">
               <select value={String(lag)} onChange={(e) => onLagChange(Number(e.target.value))}>
-                <option value="0">Same day</option>
-                <option value="1">1 day earlier</option>
-                <option value="2">2 days earlier</option>
-                <option value="3">3 days earlier</option>
-                <option value="7">7 days earlier</option>
+                <option value="0">Same time</option>
+                <option value="1">1 earlier</option>
+                <option value="2">2 earlier</option>
+                <option value="3">3 earlier</option>
+                <option value="7">7 earlier</option>
               </select>
             </span>
           </label>
