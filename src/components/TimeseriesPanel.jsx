@@ -74,7 +74,7 @@ export default function TimeseriesPanel({ rows, metrics, selected, onSelectedCha
         <div>
           <h2>Timeseries</h2>
           <p className="hint">
-            Plot selected metrics over time. Scores and magnitude metrics use separate axes when mixed.
+            Plot the metrics you select over time. Scores and counts get their own axis when shown together.
           </p>
         </div>
       </div>

@@ -17,14 +17,14 @@ ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend);
 export default function RegressionPanel({ rows, metrics, xKey, yKey, onAxesChange, lag }) {
   const result = useMemo(() => {
     if (!xKey || !yKey || xKey === yKey) {
-      return { insight: 'Choose two different metrics.', chart: null };
+      return { insight: 'Pick two different metrics to compare.', chart: null };
     }
     const xLabel = laggedMetricLabel(xKey, lag);
     const yLabel = currentMetricLabel(yKey, lag);
     const points = paired(rows, xKey, yKey, lag);
     const fit = ols(points);
     if (!fit) {
-      return { insight: 'Need at least 3 overlapping periods for regression.', chart: null };
+      return { insight: 'Need a few more days where both metrics have values.', chart: null };
     }
     const xs = points.map((p) => p.x);
     const minX = Math.min(...xs);
@@ -37,22 +37,21 @@ export default function RegressionPanel({ rows, metrics, xKey, yKey, onAxesChang
     const strength = Math.abs(fit.r) >= 0.6 ? 'strong' : Math.abs(fit.r) >= 0.3 ? 'moderate' : 'weak';
     return {
       insight:
-        `${yLabel} = ${fit.intercept.toFixed(2)} + ${fit.slope.toFixed(4)} × ${xLabel}. `
-        + `R² = ${fit.r2?.toFixed(3) ?? '—'}, r = ${fit.r?.toFixed(3) ?? '—'}, n = ${fit.n}. `
-        + `${strength[0].toUpperCase()}${strength.slice(1)} association: higher ${xLabel} tends to mean ${direction} ${yLabel}.`,
+        `${strength[0].toUpperCase()}${strength.slice(1)} link across ${fit.n} days: higher ${xLabel} tends to mean ${direction} ${yLabel} `
+        + `(explains about ${Math.round((fit.r2 || 0) * 100)}% of the variation).`,
       chart: {
         data: {
           datasets: [
             {
               type: 'scatter',
-              label: lag > 0 ? `${yLabel} vs ${xLabel}` : 'Periods',
+              label: 'Your days',
               data: points,
               backgroundColor: '#9fb8ff',
               borderColor: '#9fb8ff',
             },
             {
               type: 'line',
-              label: lag > 0 ? `Fit · lag ${lag}` : 'Fit',
+              label: 'Trend',
               data: line,
               borderColor: '#74e6cb',
               backgroundColor: 'transparent',
@@ -104,17 +103,17 @@ export default function RegressionPanel({ rows, metrics, xKey, yKey, onAxesChang
     <section className="panel" id="reg-panel">
       <div className="panel-head">
         <div>
-          <h2>Regression{lag > 0 ? ` · lag ${lag}` : ''}</h2>
+          <h2>Trend fit{lag > 0 ? ` · looking back ${lag}` : ''}</h2>
           <p className="hint">
             {lag > 0
-              ? `X is measured ${lag} period${lag === 1 ? '' : 's'} earlier than Y.`
-              : 'Estimate how a predictor relates to an outcome.'}
+              ? `See how an earlier metric relates to a later one (${lag} step${lag === 1 ? '' : 's'} apart).`
+              : 'See how one metric tends to move with another.'}
           </p>
         </div>
       </div>
       <div className="row-controls">
         <label className="field">
-          <span>{lag > 0 ? `X · t−${lag}` : 'X (predictor)'}</span>
+          <span>{lag > 0 ? 'Earlier metric' : 'This metric'}</span>
           <select value={xKey || ''} onChange={(e) => onAxesChange(e.target.value, yKey)}>
             {metrics.map((key) => (
               <option key={key} value={key}>{laggedMetricLabel(key, lag)}</option>
@@ -122,7 +121,7 @@ export default function RegressionPanel({ rows, metrics, xKey, yKey, onAxesChang
           </select>
         </label>
         <label className="field">
-          <span>{lag > 0 ? 'Y · t' : 'Y (outcome)'}</span>
+          <span>{lag > 0 ? 'Later metric' : 'Compared with'}</span>
           <select value={yKey || ''} onChange={(e) => onAxesChange(xKey, e.target.value)}>
             {metrics.map((key) => (
               <option key={key} value={key}>{currentMetricLabel(key, lag)}</option>

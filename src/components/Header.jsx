@@ -29,7 +29,7 @@ export default function Header({
             </span>
           </label>
           <label className="control">
-            <span className="control-label">Aggregation</span>
+            <span className="control-label">View as</span>
             <span className="select-wrap">
               <select value={granularity} onChange={(e) => onGranularityChange(e.target.value)}>
                 <option value="daily">Daily</option>
@@ -39,14 +39,14 @@ export default function Header({
             </span>
           </label>
           <label className="control">
-            <span className="control-label">Lag</span>
+            <span className="control-label">Look back</span>
             <span className="select-wrap">
               <select value={String(lag)} onChange={(e) => onLagChange(Number(e.target.value))}>
-                <option value="0">None</option>
-                <option value="1">1 period</option>
-                <option value="2">2 periods</option>
-                <option value="3">3 periods</option>
-                <option value="7">7 periods</option>
+                <option value="0">Same day</option>
+                <option value="1">1 day earlier</option>
+                <option value="2">2 days earlier</option>
+                <option value="3">3 days earlier</option>
+                <option value="7">7 days earlier</option>
               </select>
             </span>
           </label>

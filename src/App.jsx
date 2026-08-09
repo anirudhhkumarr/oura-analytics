@@ -115,7 +115,7 @@ export default function App() {
       ) : (
         <section className="panel">
           <h2>Analytics</h2>
-          <p className="hint">Connect your Oura account to explore timeseries, correlation, regression, and clustering.</p>
+          <p className="hint">Connect your Oura account to explore trends, relationships, and day patterns.</p>
         </section>
       )}
 

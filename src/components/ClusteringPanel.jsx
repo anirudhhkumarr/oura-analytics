@@ -24,7 +24,7 @@ export default function ClusteringPanel({
   const result = useMemo(() => {
     const keys = selected.filter((key) => metrics.includes(key));
     if (keys.length < 2) {
-      return { insight: 'Select at least two features for clustering.', chart: null, table: null };
+      return { insight: 'Pick at least two metrics to group your days.', chart: null, table: null };
     }
     const completeRows = [];
     const matrix = [];
@@ -36,16 +36,16 @@ export default function ClusteringPanel({
       }
     }
     if (matrix.length < k) {
-      return { insight: `Need at least ${k} complete periods for k = ${k}.`, chart: null, table: null };
+      return { insight: `Need at least ${k} days with all of these metrics filled in.`, chart: null, table: null };
     }
     const clustered = bestKmeans(matrix, k);
     if (!clustered) {
-      return { insight: 'Clustering failed for this selection.', chart: null, table: null };
+      return { insight: 'Could not group these days. Try a different set of metrics.', chart: null, table: null };
     }
     const xKey = keys[0];
     const yKey = keys[1];
     const datasets = Array.from({ length: k }, (_, c) => ({
-      label: `Cluster ${c + 1} (n=${clustered.counts[c]})`,
+      label: `Group ${c + 1} (${clustered.counts[c]} days)`,
       data: completeRows
         .map((row, i) => (clustered.labels[i] === c ? { x: row[xKey], y: row[yKey] } : null))
         .filter(Boolean),
@@ -55,8 +55,8 @@ export default function ClusteringPanel({
     const largest = clustered.counts.indexOf(Math.max(...clustered.counts));
     return {
       insight:
-        `Grouped ${completeRows.length} periods into ${k} clusters using ${keys.map(metricLabel).join(', ')}. `
-        + `Largest group is Cluster ${largest + 1} (${clustered.counts[largest]} periods).`,
+        `Found ${k} patterns across ${completeRows.length} days using ${keys.map(metricLabel).join(', ')}. `
+        + `The largest is Group ${largest + 1} (${clustered.counts[largest]} days).`,
       chart: {
         data: { datasets },
         options: {
@@ -86,15 +86,15 @@ export default function ClusteringPanel({
     <section className="panel">
       <div className="panel-head">
         <div>
-          <h2>Clustering</h2>
+          <h2>Day patterns</h2>
           <p className="hint">
-            Group similar periods with k-means. The scatter uses the first two selected metrics.
+            Group similar days together. The chart uses the first two metrics you pick.
           </p>
         </div>
       </div>
       <div className="row-controls">
         <label className="field">
-          <span>Clusters (k)</span>
+          <span>Number of groups</span>
           <select value={String(k)} onChange={(e) => onKChange(Number(e.target.value))}>
             <option value="2">2</option>
             <option value="3">3</option>
@@ -111,15 +111,15 @@ export default function ClusteringPanel({
         <table className="centroids">
           <thead>
             <tr>
-              <th>Cluster</th>
-              <th>Periods</th>
+              <th>Group</th>
+              <th>Days</th>
               {result.table.keys.map((key) => <th key={key}>{metricLabel(key)}</th>)}
             </tr>
           </thead>
           <tbody>
             {Array.from({ length: result.table.k }, (_, c) => (
               <tr key={c}>
-                <td>Cluster {c + 1}</td>
+                <td>Group {c + 1}</td>
                 <td>{result.table.counts[c]}</td>
                 {result.table.centroids[c].map((value, i) => (
                   <td key={result.table.keys[i]}>{Number.isFinite(value) ? value.toFixed(1) : '—'}</td>

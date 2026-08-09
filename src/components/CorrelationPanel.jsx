@@ -16,7 +16,7 @@ export default function CorrelationPanel({
     const cols = selected.filter((key) => metrics.includes(key));
     const rowKeys = metrics;
     if (!cols.length) {
-      return { insight: 'Select at least one column metric for correlation.', matrix: null, pairs: [] };
+      return { insight: 'Pick at least one metric across the top to compare.', matrix: null, pairs: [] };
     }
     // Cell [row][col] = corr(col at t−lag, row at t). Columns follow selection; rows stay all metrics.
     const matrix = rowKeys.map((rowKey) => cols.map((colKey) => {
@@ -33,14 +33,17 @@ export default function CorrelationPanel({
     }
     pairs.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
     const top = pairs[0];
+    const strength = top && Math.abs(top.r) >= 0.6 ? 'strong'
+      : top && Math.abs(top.r) >= 0.3 ? 'moderate'
+        : 'mild';
     return {
       cols,
       rowKeys,
       matrix,
       pairs: pairs.slice(0, 5),
       insight: top
-        ? `Strongest link: ${laggedMetricLabel(top.x, lag)} → ${currentMetricLabel(top.y, lag)} (r = ${top.r.toFixed(2)}). Click a cell to inspect with regression.`
-        : 'Not enough overlapping periods to compute correlations.',
+        ? `Closest relationship: ${laggedMetricLabel(top.x, lag)} with ${currentMetricLabel(top.y, lag)} (${strength}, ${top.r.toFixed(2)}). Tap a cell to explore it below.`
+        : 'Not enough shared days yet to compare these metrics.',
     };
   }, [rows, metrics, selected, lag]);
 
@@ -48,11 +51,11 @@ export default function CorrelationPanel({
     <section className="panel" id="corr-panel">
       <div className="panel-head">
         <div>
-          <h2>Correlation{lag > 0 ? ` · lag ${lag}` : ''}</h2>
+          <h2>Correlation{lag > 0 ? ` · looking back ${lag}` : ''}</h2>
           <p className="hint">
             {lag > 0
-              ? `Select column predictors (t−${lag}); rows show every outcome at t.`
-              : 'Selection filters columns; rows always include every metric.'}
+              ? `Choose which earlier metrics appear across the top. Every metric stays listed on the side for comparison.`
+              : 'Choose which metrics appear across the top. Every metric stays listed on the side.'}
           </p>
         </div>
       </div>
@@ -62,7 +65,7 @@ export default function CorrelationPanel({
           <table className="heatmap">
             <thead>
               <tr>
-                <th>{lag > 0 ? `row (t) \\ col (t−${lag})` : ''}</th>
+                <th>{lag > 0 ? 'Earlier →' : ''}</th>
                 {result.cols.map((key) => (
                   <th key={key}>{laggedMetricLabel(key, lag)}</th>
                 ))}
@@ -94,7 +97,7 @@ export default function CorrelationPanel({
       <ul className="pairs">
         {result.pairs.map((pair) => (
           <li key={`${pair.x}-${pair.y}`}>
-            {laggedMetricLabel(pair.x, lag)} → {currentMetricLabel(pair.y, lag)}: r = {pair.r.toFixed(2)} ({pair.r >= 0 ? 'positive' : 'negative'})
+            {laggedMetricLabel(pair.x, lag)} with {currentMetricLabel(pair.y, lag)}: {pair.r.toFixed(2)} ({pair.r >= 0 ? 'move together' : 'move opposite'})
           </li>
         ))}
       </ul>
