@@ -13,26 +13,29 @@ export default function CorrelationPanel({
   onPickRegression,
 }) {
   const result = useMemo(() => {
-    const keys = selected.filter((key) => metrics.includes(key));
-    if (keys.length < 2) {
-      return { insight: 'Select at least two metrics for correlation.', matrix: null, pairs: [] };
+    const cols = selected.filter((key) => metrics.includes(key));
+    const rowKeys = metrics;
+    if (!cols.length) {
+      return { insight: 'Select at least one column metric for correlation.', matrix: null, pairs: [] };
     }
-    // Cell [row][col] = corr(col at t−lag, row at t).
-    const matrix = keys.map((rowKey) => keys.map((colKey) => {
+    // Cell [row][col] = corr(col at t−lag, row at t). Columns follow selection; rows stay all metrics.
+    const matrix = rowKeys.map((rowKey) => cols.map((colKey) => {
       const points = paired(rows, colKey, rowKey, lag);
       return pearson(points.map((p) => p.x), points.map((p) => p.y));
     }));
     const pairs = [];
-    for (let i = 0; i < keys.length; i += 1) {
-      for (let j = i + 1; j < keys.length; j += 1) {
+    for (let i = 0; i < rowKeys.length; i += 1) {
+      for (let j = 0; j < cols.length; j += 1) {
+        if (lag === 0 && rowKeys[i] === cols[j]) continue;
         const r = matrix[i][j];
-        if (r != null) pairs.push({ x: keys[j], y: keys[i], r });
+        if (r != null) pairs.push({ x: cols[j], y: rowKeys[i], r });
       }
     }
     pairs.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
     const top = pairs[0];
     return {
-      keys,
+      cols,
+      rowKeys,
       matrix,
       pairs: pairs.slice(0, 5),
       insight: top
@@ -48,8 +51,8 @@ export default function CorrelationPanel({
           <h2>Correlation{lag > 0 ? ` · lag ${lag}` : ''}</h2>
           <p className="hint">
             {lag > 0
-              ? `Columns are predictors at t−${lag}; rows are outcomes at t.`
-              : 'Pearson relationships across selected metrics.'}
+              ? `Select column predictors (t−${lag}); rows show every outcome at t.`
+              : 'Selection filters columns; rows always include every metric.'}
           </p>
         </div>
       </div>
@@ -60,16 +63,16 @@ export default function CorrelationPanel({
             <thead>
               <tr>
                 <th>{lag > 0 ? `row (t) \\ col (t−${lag})` : ''}</th>
-                {result.keys.map((key) => (
+                {result.cols.map((key) => (
                   <th key={key}>{laggedMetricLabel(key, lag)}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {result.keys.map((rowKey, i) => (
+              {result.rowKeys.map((rowKey, i) => (
                 <tr key={rowKey}>
                   <th>{currentMetricLabel(rowKey, lag)}</th>
-                  {result.keys.map((colKey, j) => {
+                  {result.cols.map((colKey, j) => {
                     const r = result.matrix[i][j];
                     return (
                       <td
