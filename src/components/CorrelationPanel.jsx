@@ -16,11 +16,11 @@ export default function CorrelationPanel({
     const cols = selected.filter((key) => metrics.includes(key));
     const rowKeys = metrics;
     if (!cols.length) {
-      return { insight: 'Pick at least one metric across the top to compare.', matrix: null, pairs: [] };
+      return { insight: null, matrix: null, pairs: [] };
     }
-    // Cell [row][col] = corr(col at t−lag, row at t). Columns follow selection; rows stay all metrics.
+    // Cell [row][col] = corr(row at t−lag, col at t): how the row affects the column.
     const matrix = rowKeys.map((rowKey) => cols.map((colKey) => {
-      const points = paired(rows, colKey, rowKey, lag);
+      const points = paired(rows, rowKey, colKey, lag);
       return pearson(points.map((p) => p.x), points.map((p) => p.y));
     }));
     const pairs = [];
@@ -28,22 +28,16 @@ export default function CorrelationPanel({
       for (let j = 0; j < cols.length; j += 1) {
         if (lag === 0 && rowKeys[i] === cols[j]) continue;
         const r = matrix[i][j];
-        if (r != null) pairs.push({ x: cols[j], y: rowKeys[i], r });
+        if (r != null) pairs.push({ x: rowKeys[i], y: cols[j], r });
       }
     }
     pairs.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
-    const top = pairs[0];
-    const strength = top && Math.abs(top.r) >= 0.6 ? 'strong'
-      : top && Math.abs(top.r) >= 0.3 ? 'moderate'
-        : 'mild';
     return {
       cols,
       rowKeys,
       matrix,
       pairs: pairs.slice(0, 5),
-      insight: top
-        ? `Closest relationship: ${laggedMetricLabel(top.x, lag)} with ${currentMetricLabel(top.y, lag)} (${strength}, ${top.r.toFixed(2)}). Tap a cell to explore it below.`
-        : 'Not enough shared days yet to compare these metrics.',
+      insight: null,
     };
   }, [rows, metrics, selected, lag]);
 
@@ -51,12 +45,8 @@ export default function CorrelationPanel({
     <section className="panel" id="corr-panel">
       <div className="panel-head">
         <div>
-          <h2>Correlation{lag > 0 ? ` · looking back ${lag}` : ''}</h2>
-          <p className="hint">
-            {lag > 0
-              ? `Choose which earlier metrics appear across the top. Every metric stays listed on the side for comparison.`
-              : 'Choose which metrics appear across the top. Every metric stays listed on the side.'}
-          </p>
+          <h2>Correlation{lag > 0 ? ` · −${lag}` : ''}</h2>
+          <p className="hint">Rows show what affects each selected column.</p>
         </div>
       </div>
       <MetricPicker metrics={metrics} selected={selected} onChange={onSelectedChange} />
@@ -65,24 +55,24 @@ export default function CorrelationPanel({
           <table className="heatmap">
             <thead>
               <tr>
-                <th>{lag > 0 ? 'Earlier →' : ''}</th>
+                <th />
                 {result.cols.map((key) => (
-                  <th key={key}>{laggedMetricLabel(key, lag)}</th>
+                  <th key={key}>{currentMetricLabel(key, lag)}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {result.rowKeys.map((rowKey, i) => (
                 <tr key={rowKey}>
-                  <th>{currentMetricLabel(rowKey, lag)}</th>
+                  <th>{laggedMetricLabel(rowKey, lag)}</th>
                   {result.cols.map((colKey, j) => {
                     const r = result.matrix[i][j];
                     return (
                       <td
                         key={colKey}
                         style={{ background: heatColor(r) }}
-                        title={`${laggedMetricLabel(colKey, lag)} → ${currentMetricLabel(rowKey, lag)}`}
-                        onClick={() => onPickRegression(colKey, rowKey)}
+                        title={`${laggedMetricLabel(rowKey, lag)} → ${currentMetricLabel(colKey, lag)}`}
+                        onClick={() => onPickRegression(rowKey, colKey)}
                       >
                         {r == null ? '—' : r.toFixed(2)}
                       </td>
@@ -97,7 +87,7 @@ export default function CorrelationPanel({
       <ul className="pairs">
         {result.pairs.map((pair) => (
           <li key={`${pair.x}-${pair.y}`}>
-            {laggedMetricLabel(pair.x, lag)} with {currentMetricLabel(pair.y, lag)}: {pair.r.toFixed(2)} ({pair.r >= 0 ? 'move together' : 'move opposite'})
+            {laggedMetricLabel(pair.x, lag)} → {currentMetricLabel(pair.y, lag)}: {pair.r.toFixed(2)}
           </li>
         ))}
       </ul>

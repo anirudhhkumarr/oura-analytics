@@ -14,7 +14,7 @@ export default function Header({
     <header className="app-header">
       <div className="brand">
         <h1>Oura Analytics</h1>
-        <p className="sub">Explore recovery trends, correlations, and what drives your readiness.</p>
+        <p className="sub">Recovery trends and what drives readiness.</p>
       </div>
       <div className="toolbar">
         <div className="control-group" role="group" aria-label="Analysis filters">

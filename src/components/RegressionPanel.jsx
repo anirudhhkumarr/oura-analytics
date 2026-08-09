@@ -17,14 +17,14 @@ ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend);
 export default function RegressionPanel({ rows, metrics, xKey, yKey, onAxesChange, lag }) {
   const result = useMemo(() => {
     if (!xKey || !yKey || xKey === yKey) {
-      return { insight: 'Pick two different metrics to compare.', chart: null };
+      return { insight: null, chart: null };
     }
     const xLabel = laggedMetricLabel(xKey, lag);
     const yLabel = currentMetricLabel(yKey, lag);
     const points = paired(rows, xKey, yKey, lag);
     const fit = ols(points);
     if (!fit) {
-      return { insight: 'Need a few more days where both metrics have values.', chart: null };
+      return { insight: null, chart: null };
     }
     const xs = points.map((p) => p.x);
     const minX = Math.min(...xs);
@@ -34,17 +34,14 @@ export default function RegressionPanel({ rows, metrics, xKey, yKey, onAxesChang
       { x: maxX, y: fit.intercept + fit.slope * maxX },
     ];
     const direction = fit.slope >= 0 ? 'higher' : 'lower';
-    const strength = Math.abs(fit.r) >= 0.6 ? 'strong' : Math.abs(fit.r) >= 0.3 ? 'moderate' : 'weak';
     return {
-      insight:
-        `${strength[0].toUpperCase()}${strength.slice(1)} link across ${fit.n} days: higher ${xLabel} tends to mean ${direction} ${yLabel} `
-        + `(explains about ${Math.round((fit.r2 || 0) * 100)}% of the variation).`,
+      insight: `Higher ${xLabel} → ${direction} ${yLabel}`,
       chart: {
         data: {
           datasets: [
             {
               type: 'scatter',
-              label: 'Your days',
+              label: 'Days',
               data: points,
               backgroundColor: '#9fb8ff',
               borderColor: '#9fb8ff',
@@ -103,17 +100,12 @@ export default function RegressionPanel({ rows, metrics, xKey, yKey, onAxesChang
     <section className="panel" id="reg-panel">
       <div className="panel-head">
         <div>
-          <h2>Trend fit{lag > 0 ? ` · looking back ${lag}` : ''}</h2>
-          <p className="hint">
-            {lag > 0
-              ? `See how an earlier metric relates to a later one (${lag} step${lag === 1 ? '' : 's'} apart).`
-              : 'See how one metric tends to move with another.'}
-          </p>
+          <h2>Trend fit{lag > 0 ? ` · −${lag}` : ''}</h2>
         </div>
       </div>
       <div className="row-controls">
         <label className="field">
-          <span>{lag > 0 ? 'Earlier metric' : 'This metric'}</span>
+          <span>{lag > 0 ? 'Earlier' : 'X'}</span>
           <select value={xKey || ''} onChange={(e) => onAxesChange(e.target.value, yKey)}>
             {metrics.map((key) => (
               <option key={key} value={key}>{laggedMetricLabel(key, lag)}</option>
@@ -121,7 +113,7 @@ export default function RegressionPanel({ rows, metrics, xKey, yKey, onAxesChang
           </select>
         </label>
         <label className="field">
-          <span>{lag > 0 ? 'Later metric' : 'Compared with'}</span>
+          <span>{lag > 0 ? 'Later' : 'Y'}</span>
           <select value={yKey || ''} onChange={(e) => onAxesChange(xKey, e.target.value)}>
             {metrics.map((key) => (
               <option key={key} value={key}>{currentMetricLabel(key, lag)}</option>

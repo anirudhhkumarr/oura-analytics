@@ -73,9 +73,6 @@ export default function TimeseriesPanel({ rows, metrics, selected, onSelectedCha
       <div className="panel-head">
         <div>
           <h2>Timeseries</h2>
-          <p className="hint">
-            Plot the metrics you select over time. Scores and counts get their own axis when shown together.
-          </p>
         </div>
       </div>
       <MetricPicker metrics={metrics} selected={selected} onChange={onSelectedChange} />
