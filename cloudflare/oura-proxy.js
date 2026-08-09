@@ -122,7 +122,9 @@ async function setupSubscriptions(request, env) {
   const callbackUrl = `${origin}/webhook`;
   const dataTypes = [
     'daily_sleep', 'daily_readiness', 'daily_activity', 'daily_stress',
-    'sleep', 'workout', 'session', 'spo2',
+    'daily_resilience', 'daily_spo2', 'daily_cardiovascular_age',
+    'vo2_max', 'sleep', 'sleep_time', 'workout', 'session', 'rest_mode_period',
+    'tag', 'enhanced_tag', 'ring_configuration', 'blood_glucose', 'activation_status',
   ];
   const eventTypes = ['create', 'update'];
   const created = [];

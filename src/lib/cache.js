@@ -88,6 +88,9 @@ export function itemDay(item) {
 
 export function itemId(item, fallback = 'item') {
   if (item?.id != null) return String(item.id);
+  if (item?.timestamp_unix != null) return `ts:${item.timestamp_unix}`;
+  const stamp = item?.timestamp || item?.start_datetime || item?.start_time || '';
+  if (stamp) return `ts:${stamp}`;
   const day = itemDay(item);
   return day ? `${day}:${fallback}` : fallback;
 }

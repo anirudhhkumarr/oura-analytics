@@ -11,6 +11,40 @@ import {
 
 /** Days that Oura may still revise (tonight's sleep / today's activity). */
 const MUTABLE_DAYS = 2;
+
+/** Dense beat-level series — only refresh the mutable window to protect localStorage. */
+const DENSE_TIMESERIES = new Set(['interbeat_interval']);
+
+/**
+ * Every Oura usercollection route we know about.
+ * date: start_date/end_date · datetime: start_datetime/end_datetime · none: no range filter
+ */
+const COLLECTIONS = [
+  { name: 'daily_sleep', path: '/usercollection/daily_sleep', range: 'date' },
+  { name: 'daily_readiness', path: '/usercollection/daily_readiness', range: 'date' },
+  { name: 'daily_activity', path: '/usercollection/daily_activity', range: 'date' },
+  { name: 'daily_stress', path: '/usercollection/daily_stress', range: 'date' },
+  { name: 'daily_resilience', path: '/usercollection/daily_resilience', range: 'date' },
+  { name: 'daily_spo2', path: '/usercollection/daily_spo2', range: 'date' },
+  { name: 'daily_cardiovascular_age', path: '/usercollection/daily_cardiovascular_age', range: 'date' },
+  { name: 'vo2_max', path: '/usercollection/vO2_max', range: 'date' },
+  { name: 'sleep_time', path: '/usercollection/sleep_time', range: 'date' },
+  { name: 'sleep', path: '/usercollection/sleep', range: 'date' },
+  { name: 'workout', path: '/usercollection/workout', range: 'date' },
+  { name: 'session', path: '/usercollection/session', range: 'date' },
+  { name: 'rest_mode_period', path: '/usercollection/rest_mode_period', range: 'date' },
+  { name: 'tag', path: '/usercollection/tag', range: 'date' },
+  { name: 'enhanced_tag', path: '/usercollection/enhanced_tag', range: 'date' },
+  { name: 'blood_glucose', path: '/usercollection/blood_glucose', range: 'date' },
+  { name: 'activation_status', path: '/usercollection/activation_status', range: 'date' },
+  { name: 'heartrate', path: '/usercollection/heartrate', range: 'datetime' },
+  { name: 'ring_battery_level', path: '/usercollection/ring_battery_level', range: 'datetime' },
+  { name: 'interbeat_interval', path: '/usercollection/interbeat_interval', range: 'datetime' },
+  { name: 'ring_configuration', path: '/usercollection/ring_configuration', range: 'none' },
+];
+
+const CACHE_COLLECTIONS = COLLECTIONS.map((c) => c.name);
+
 async function oura(path, query = {}) {
   const token = await accessToken();
   const apiRoot = getApiBase();
@@ -52,6 +86,19 @@ function addDays(day, delta) {
 function avg(rows, field) {
   const values = rows.map((row) => row[field]).filter((value) => Number.isFinite(value));
   return values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : null;
+}
+
+function rangeQuery(range, startDay, endDay) {
+  if (range === 'none') return {};
+  if (range === 'datetime') {
+    return {
+      start_datetime: new Date(`${startDay}T00:00:00.000Z`).toISOString(),
+      end_datetime: endDay === isoDay(new Date())
+        ? new Date().toISOString()
+        : new Date(`${endDay}T23:59:59.999Z`).toISOString(),
+    };
+  }
+  return { start_date: startDay, end_date: endDay };
 }
 
 function buildDashboard(raw) {
@@ -102,13 +149,8 @@ async function needsHistoricalBackfill(startDay, immutableEnd) {
 }
 
 async function loadRawFromCache(startDay, endDay) {
-  const names = [
-    'daily_sleep', 'daily_readiness', 'daily_activity', 'daily_stress', 'daily_resilience',
-    'daily_spo2', 'daily_cardiovascular_age', 'vo2_max', 'sleep_time', 'sleep',
-    'workout', 'session', 'rest_mode_period', 'enhanced_tag', 'heartrate',
-  ];
   const raw = {};
-  for (const name of names) {
+  for (const name of CACHE_COLLECTIONS) {
     raw[name] = { data: await getCollectionItems(name, { startDay, endDay }) };
   }
   const personal = await getSingleton('personal_info');
@@ -135,34 +177,13 @@ export async function fetchDashboard(days, { force = false, onProgress } = {}) {
       : 'Loading history into local cache…');
   }
 
-  const query = { start_date: fetchStart, end_date: endDay };
-  const heartRateStart = new Date(`${fetchStart}T00:00:00.000Z`).toISOString();
-  const collections = [
-    ['daily_sleep', '/usercollection/daily_sleep', query],
-    ['daily_readiness', '/usercollection/daily_readiness', query],
-    ['daily_activity', '/usercollection/daily_activity', query],
-    ['daily_stress', '/usercollection/daily_stress', query],
-    ['daily_resilience', '/usercollection/daily_resilience', query],
-    ['daily_spo2', '/usercollection/daily_spo2', query],
-    ['daily_cardiovascular_age', '/usercollection/daily_cardiovascular_age', query],
-    ['vo2_max', '/usercollection/vO2_max', query],
-    ['sleep_time', '/usercollection/sleep_time', query],
-    ['sleep', '/usercollection/sleep', query],
-    ['workout', '/usercollection/workout', query],
-    ['session', '/usercollection/session', query],
-    ['rest_mode_period', '/usercollection/rest_mode_period', query],
-    ['enhanced_tag', '/usercollection/enhanced_tag', query],
-    ['heartrate', '/usercollection/heartrate', {
-      start_datetime: heartRateStart,
-      end_datetime: new Date().toISOString(),
-    }],
-  ];
-
   const errors = {};
   let fetchedAny = false;
-  for (const [name, path, params] of collections) {
+  for (const { name, path, range } of COLLECTIONS) {
+    const windowStart = DENSE_TIMESERIES.has(name) ? mutableStart : fetchStart;
+    const query = rangeQuery(range, windowStart, endDay);
     try {
-      const page = await oura(path, params);
+      const page = await oura(path, query);
       await upsertCollectionItems(name, page.data || []);
       fetchedAny = true;
     } catch (error) {

@@ -12,6 +12,7 @@ import { Line } from 'react-chartjs-2';
 import { useMemo } from 'react';
 import MetricPicker from './MetricPicker.jsx';
 import { METRIC_DEFS, metricColor, metricLabel } from '../lib/metrics.js';
+import { formatPeriodLabel } from '../lib/series.js';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -22,7 +23,7 @@ export default function TimeseriesPanel({ rows, metrics, selected, onSelectedCha
     const hasScore = keys.some((key) => METRIC_DEFS[key]?.scale === 'score');
     const hasMag = keys.some((key) => METRIC_DEFS[key]?.scale === 'magnitude');
     const dual = hasScore && hasMag;
-    const labels = rows.map((row) => (granularity === 'daily' ? row.day.slice(5) : row.day));
+    const labels = rows.map((row) => formatPeriodLabel(row.day, granularity));
     const datasets = keys.map((key) => {
       const index = metrics.indexOf(key);
       const useRight = dual && METRIC_DEFS[key]?.scale === 'magnitude';
